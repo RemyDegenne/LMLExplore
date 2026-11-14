@@ -24,7 +24,8 @@ dominating measure:
   the effective null over a measure `π` of mass at most `1`, hence, when the members of `S` have
   mass at most `1`, every such mixture of members of `S` and the convex hull of `S`;
 * it is solid (`μ ≤ ν ∈ effectiveSet S` gives `μ ∈ effectiveSet S`) and closed under setwise
-  convergence;
+  convergence, and more generally under limits `μ` with `μ s ≤ liminf (fun i ↦ μs i s) l` for
+  every measurable set `s`;
 * when the members of `S` are probability measures, `S` and the probability measures of
   `effectiveSet S` have the same e-variables, so that the effective null of the latter is
   `effectiveSet S` again;
@@ -38,11 +39,14 @@ dominating measure:
   mixtures.
 * `ProbabilityTheory.convex_effectiveSet`, `ProbabilityTheory.convexHull_subset_effectiveSet`.
 * `ProbabilityTheory.mem_effectiveSet_of_le`: solidity.
-* `ProbabilityTheory.mem_effectiveSet_of_frequently_of_tendsto`: closure under setwise
-  convergence.
+* `ProbabilityTheory.mem_effectiveSet_of_frequently_of_forall_measure_le_liminf`: closure under
+  setwise convergence.
 * `ProbabilityTheory.isEVar_effectiveSet_inter_iff`: the same e-variables.
 * `ProbabilityTheory.mem_effectiveSet_iff_forall_bounded`: bounded e-variables suffice to test
   membership.
+* `ProbabilityTheory.isEVar_inv_mul_of_lintegral_le`,
+  `ProbabilityTheory.IsEVar.lintegral_const_mul_le`: tests and bounded e-variables are rescalings
+  of each other [RW, Fact 3.6].
 * `ProbabilityTheory.exists_powered_test_iff`: powered tests exist exactly outside the effective
   null [RW, Theorem 6.10].
 
@@ -56,7 +60,7 @@ dominating measure:
 
 public section
 
-open Filter Set Topology
+open Filter Set
 open scoped ENNReal
 
 namespace ProbabilityTheory
@@ -125,23 +129,26 @@ lemma convexHull_subset_effectiveSet (hS : ∀ μ ∈ S, μ .univ ≤ 1) :
 lemma mem_effectiveSet_of_le (hμν : μ ≤ ν) (hν : ν ∈ effectiveSet S) : μ ∈ effectiveSet S :=
   fun X hX ↦ (lintegral_mono' hμν le_rfl).trans (hν X hX)
 
-/-- The effective null is closed under setwise convergence: if `μs i s` tends to `μ s` along `l`
-for every measurable set `s`, and `μs i` lies frequently along `l` in the effective null, then so
-does `μ`. -/
-lemma mem_effectiveSet_of_frequently_of_tendsto {l : Filter ι} {μs : ι → Measure 𝓧}
-    (h : ∀ s, MeasurableSet s → Tendsto (fun i ↦ μs i s) l (𝓝 (μ s)))
+/-- The effective null is closed under setwise convergence: if `μ s ≤ liminf (fun i ↦ μs i s) l`
+for every measurable set `s`, for instance if `μs i s` tends to `μ s` along `l` for every
+measurable set `s`, and `μs i` lies frequently along `l` in the effective null, then so does
+`μ`. -/
+lemma mem_effectiveSet_of_frequently_of_forall_measure_le_liminf {l : Filter ι}
+    {μs : ι → Measure 𝓧} (h : ∀ s, MeasurableSet s → μ s ≤ liminf (fun i ↦ μs i s) l)
     (hμs : ∃ᶠ i in l, μs i ∈ effectiveSet S) :
     μ ∈ effectiveSet S :=
-  fun X hX ↦ lintegral_le_of_frequently_of_tendsto_measure h (hμs.mono fun _ hi ↦ hi X hX)
+  fun X hX ↦ lintegral_le_of_frequently_of_forall_measure_le_liminf_measure h
+    (hμs.mono fun _ hi ↦ hi X hX)
 
-/-- The effective null is closed under setwise convergence: if `μs i s` tends to `μ s` along a
-nontrivial filter `l` for every measurable set `s`, and `μs i` lies eventually along `l` in the
+/-- The effective null is closed under setwise convergence: if `μ s ≤ liminf (fun i ↦ μs i s) l`
+along a nontrivial filter `l` for every measurable set `s`, for instance if `μs i s` tends to
+`μ s` along `l` for every measurable set `s`, and `μs i` lies eventually along `l` in the
 effective null, then so does `μ`. -/
-lemma mem_effectiveSet_of_tendsto {l : Filter ι} [l.NeBot] {μs : ι → Measure 𝓧}
-    (h : ∀ s, MeasurableSet s → Tendsto (fun i ↦ μs i s) l (𝓝 (μ s)))
+lemma mem_effectiveSet_of_forall_measure_le_liminf {l : Filter ι} [l.NeBot]
+    {μs : ι → Measure 𝓧} (h : ∀ s, MeasurableSet s → μ s ≤ liminf (fun i ↦ μs i s) l)
     (hμs : ∀ᶠ i in l, μs i ∈ effectiveSet S) :
     μ ∈ effectiveSet S :=
-  mem_effectiveSet_of_frequently_of_tendsto h hμs.frequently
+  mem_effectiveSet_of_frequently_of_forall_measure_le_liminf h hμs.frequently
 
 /-! ### The e-variables of the effective null -/
 
@@ -180,6 +187,28 @@ lemma mem_effectiveSet_iff_forall_bounded (hS : ∀ μ ∈ S, IsFiniteMeasure μ
 
 /-! ### Tests and the effective null -/
 
+/-- A test of level `α` is an e-variable after division by `α` [RW, Fact 3.6]: if a measurable `φ`
+has `∫⁻ φ ∂P ≤ α` for every `P` in a null of probability measures `S`, then `α⁻¹ * φ` is an
+e-variable for `S`. -/
+lemma isEVar_inv_mul_of_lintegral_le (hS : ∀ P ∈ S, IsProbabilityMeasure P) {φ : 𝓧 → ℝ≥0∞}
+    (hφ : Measurable φ) {α : ℝ≥0∞} (hφS : ∀ P ∈ S, ∫⁻ x, φ x ∂P ≤ α) :
+    IsEVar (fun x ↦ α⁻¹ * φ x) S := by
+  refine .of_lintegral_le_one hS (hφ.const_mul _) fun P hP ↦ ?_
+  rw [lintegral_const_mul _ hφ]
+  calc α⁻¹ * ∫⁻ x, φ x ∂P
+  _ ≤ α⁻¹ * α := by gcongr; exact hφS P hP
+  _ ≤ 1 := α.inv_mul_le_one
+
+/-- A multiple `c * X` of an e-variable `X` for `S` has `P`-expectation at most `c * P univ` for
+every `P ∈ S`. In particular, for an e-variable `X ≤ D` and a null of probability measures,
+`D⁻¹ * X` is a test of level `D⁻¹` [RW, Fact 3.6]. -/
+lemma IsEVar.lintegral_const_mul_le {X : 𝓧 → ℝ≥0∞} (hX : IsEVar X S) (c : ℝ≥0∞) {P : Measure 𝓧}
+    (hP : P ∈ S) :
+    ∫⁻ x, c * X x ∂P ≤ c * P .univ := by
+  rw [lintegral_const_mul _ hX.measurable]
+  gcongr
+  exact hX.lintegral_le_measure_univ P hP
+
 /-- **Powered tests exist exactly outside the effective null** [RW, Theorem 6.10]. For a null of
 probability measures `S` and a measure `Q`, some test `φ` (a measurable function with values in
 `[0, 1]`) of level `α ∈ (0, 1)` for `S` has `Q`-power `∫⁻ φ ∂Q` larger than `α` exactly when `Q`
@@ -191,20 +220,12 @@ theorem exists_powered_test_iff (hS : ∀ P ∈ S, IsProbabilityMeasure P) (Q : 
   constructor
   · -- `φ / α` is an e-variable for `S` with `Q`-expectation larger than `1`.
     rintro ⟨α, hα0, hα1, φ, hφ, -, hφS, hφQ⟩ hQ
-    have hα_top : α ≠ ∞ := (hα1.trans ENNReal.one_lt_top).ne
-    have hE : IsEVar (fun x ↦ α⁻¹ * φ x) S := by
-      refine .of_lintegral_le_one hS (hφ.const_mul _) fun P hP ↦ ?_
-      rw [lintegral_const_mul _ hφ]
-      calc α⁻¹ * ∫⁻ x, φ x ∂P
-      _ ≤ α⁻¹ * α := by gcongr; exact hφS P hP
-      _ = 1 := ENNReal.inv_mul_cancel hα0.ne' hα_top
-    have hQ_le := hQ _ hE
-    rw [lintegral_const_mul _ hφ] at hQ_le
-    refine (ENNReal.mul_lt_mul_right (ENNReal.inv_ne_zero.mpr hα_top)
-      (ENNReal.inv_ne_top.mpr hα0.ne') hφQ).not_ge ?_
-    rwa [ENNReal.inv_mul_cancel hα0.ne' hα_top]
+    have hQ_le := hQ _ (isEVar_inv_mul_of_lintegral_le hS hφ hφS)
+    rw [lintegral_const_mul _ hφ,
+      ENNReal.inv_mul_le_iff hα0.ne' (hα1.trans ENNReal.one_lt_top).ne, mul_one] at hQ_le
+    exact hφQ.not_ge hQ_le
   · -- A bounded e-variable `X ≤ C` with `Q`-expectation larger than `1`, divided by
-    -- `D = max C 2`, is a test of level `D⁻¹ < 1` [RW, Fact 3.6].
+    -- `D = max C 2`, is a test of level `D⁻¹ < 1`.
     intro hQ
     rw [mem_effectiveSet_iff_forall_bounded fun P hP ↦ have := hS P hP; inferInstance] at hQ
     push Not at hQ
@@ -212,22 +233,16 @@ theorem exists_powered_test_iff (hS : ∀ P ∈ S, IsProbabilityMeasure P) (Q : 
     set D := max C 2 with hD
     have hD_top : D ≠ ∞ := max_ne_top hC ENNReal.ofNat_ne_top
     have hD0 : D ≠ 0 := (two_ne_zero.bot_lt.trans_le (le_max_right C 2)).ne'
-    have hφ : Measurable fun x ↦ D⁻¹ * X x := hX.measurable.const_mul _
-    refine ⟨D⁻¹, ENNReal.inv_pos.mpr hD_top, ?_, fun x ↦ D⁻¹ * X x, hφ, fun x ↦ ?_,
-      fun P hP ↦ ?_, ?_⟩
-    · exact ENNReal.inv_lt_one.mpr (ENNReal.one_lt_two.trans_le (le_max_right C 2))
+    refine ⟨D⁻¹, ENNReal.inv_pos.mpr hD_top,
+      ENNReal.inv_lt_one.mpr (ENNReal.one_lt_two.trans_le (le_max_right C 2)),
+      fun x ↦ D⁻¹ * X x, hX.measurable.const_mul _, fun x ↦ ?_, fun P hP ↦ ?_, ?_⟩
     · calc D⁻¹ * X x
       _ ≤ D⁻¹ * D := by gcongr; exact (hXC x).trans (le_max_left C 2)
-      _ = 1 := ENNReal.inv_mul_cancel hD0 hD_top
+      _ ≤ 1 := D.inv_mul_le_one
     · have := hS P hP
-      rw [lintegral_const_mul _ hX.measurable]
-      calc D⁻¹ * ∫⁻ x, X x ∂P
-      _ ≤ D⁻¹ * 1 := by gcongr; simpa using hX.lintegral_le_measure_univ P hP
-      _ = D⁻¹ := mul_one _
+      simpa using hX.lintegral_const_mul_le D⁻¹ hP
     · rw [lintegral_const_mul _ hX.measurable]
-      calc D⁻¹ = D⁻¹ * 1 := (mul_one _).symm
-      _ < D⁻¹ * ∫⁻ x, X x ∂Q :=
-        ENNReal.mul_lt_mul_right (ENNReal.inv_ne_zero.mpr hD_top)
-          (ENNReal.inv_ne_top.mpr hD0) hXQ
+      simpa using ENNReal.mul_lt_mul_right (ENNReal.inv_ne_zero.mpr hD_top)
+        (ENNReal.inv_ne_top.mpr hD0) hXQ
 
 end ProbabilityTheory
