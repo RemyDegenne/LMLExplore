@@ -6,7 +6,7 @@ Authors: LMLExplore contributors
 module
 
 public import LMLExplore.Analysis.SpecificLimits.Basic
-public import LMLExplore.MeasureTheory.Constructions.Pi
+public import LMLExplore.Probability.ProductMeasure
 public import LMLExplore.Probability.LargeDeviations.Pi
 public import LMLExplore.SequentialLearning.SumRewards
 
