@@ -63,22 +63,12 @@ namespace ProbabilityTheory
 variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {ℱ : Filtration ℕ mΩ} {S : Set (Measure Ω)}
   {P : Measure Ω} {M : ℕ → Ω → ℝ≥0∞} {σ τ : Ω → WithTop ℕ} {s : Set Ω}
 
-/-- In `WithTop ℕ`, a time beyond `k` is at least `k + 1`. -/
-private lemma natCast_add_one_le_of_lt {b : WithTop ℕ} {k : ℕ} (hb : (k : WithTop ℕ) < b) :
-    ((k + 1 : ℕ) : WithTop ℕ) ≤ b := by
-  induction b using WithTop.recTopCoe with
-  | top => exact le_top
-  | coe c =>
-    rw [Nat.cast_withTop, WithTop.coe_lt_coe] at hb
-    rw [Nat.cast_withTop, WithTop.coe_le_coe]
-    omega
-
 /-- The interpolating times `max a (min b k)` move from `k` to `k + 1` where `a ≤ k < b`. -/
 private lemma max_min_succ_of_le_of_lt {a b : WithTop ℕ} {k : ℕ} (ha : a ≤ k)
     (hb : (k : WithTop ℕ) < b) :
     max a (min b ↑(k + 1)) = ↑(k + 1) ∧ max a (min b k) = k := by
-  rw [min_eq_right (natCast_add_one_le_of_lt hb), min_eq_right hb.le,
-    max_eq_right (ha.trans (by simp)), max_eq_right ha]
+  have hb' : ((k + 1 : ℕ) : WithTop ℕ) ≤ b := ENat.natCast_add_one_le_iff.2 hb
+  rw [min_eq_right hb', min_eq_right hb.le, max_eq_right (ha.trans (by simp)), max_eq_right ha]
   exact ⟨rfl, rfl⟩
 
 /-- The interpolating times `max a (min b k)` do not move from `k` to `k + 1` outside
@@ -87,8 +77,8 @@ private lemma max_min_succ_eq {a b : WithTop ℕ} {k : ℕ} (h : ¬(a ≤ k ∧ 
     max a (min b ↑(k + 1)) = max a (min b k) := by
   rcases not_and_or.1 h with h | h
   · rw [not_le] at h
-    rw [max_eq_left ((min_le_right _ _).trans (natCast_add_one_le_of_lt h)),
-      max_eq_left ((min_le_right _ _).trans h.le)]
+    have h' : ((k + 1 : ℕ) : WithTop ℕ) ≤ a := ENat.natCast_add_one_le_iff.2 h
+    rw [max_eq_left ((min_le_right _ _).trans h'), max_eq_left ((min_le_right _ _).trans h.le)]
   · rw [not_lt] at h
     rw [min_eq_left (h.trans (by simp)), min_eq_left h]
 
@@ -183,6 +173,8 @@ theorem setLIntegral_stoppedValueLimsup_le (hM : IsENNSupermartingale M ℱ S) (
   set F : ℕ → Ω → ℝ≥0∞ := fun N ↦
     (s ∩ {ω | σ ω ≤ N}).indicator (stoppedValueLimsup M fun ω ↦ min (τ ω) N)
   have hsN (N : ℕ) : MeasurableSet (s ∩ {ω | σ ω ≤ N}) := hs'.inter (ℱ.le N _ (hσ N))
+  have hsub (N : ℕ) : s ∩ {ω | σ ω ≤ N} ⊆ s \ {ω | σ ω = ⊤} := fun _ hω ↦
+    ⟨hω.1, ne_top_of_le_ne_top (WithTop.natCast_ne_top N) hω.2⟩
   have hF_meas (N : ℕ) : Measurable (F N) :=
     (measurable_stoppedValueLimsup hM.measurable (hτ.min_const N).measurable').indicator (hsN N)
   have hF_le (N : ℕ) :
@@ -194,9 +186,8 @@ theorem setLIntegral_stoppedValueLimsup_le (hM : IsENNSupermartingale M ℱ S) (
             ((hσ.measurableSet_inter_le_const_iff s N).1 (hs.inter (hσ.measurableSet_le' N)))
       _ = ∫⁻ ω in s ∩ {ω | σ ω ≤ N}, stoppedValueLimsup M σ ω ∂P :=
           setLIntegral_congr_fun (hsN N) fun ω hω ↦
-            stoppedValueLimsup_congr (min_eq_left (show σ ω ≤ N from hω.2))
-      _ ≤ _ := lintegral_mono_set fun ω (hω : ω ∈ s ∩ {ω | σ ω ≤ N}) ↦
-          (⟨hω.1, ne_top_of_le_ne_top (WithTop.natCast_ne_top N) hω.2⟩ : ω ∈ s \ {ω | σ ω = ⊤})
+            stoppedValueLimsup_congr (min_eq_left hω.2)
+      _ ≤ _ := lintegral_mono_set (hsub N)
   have hF_tendsto : ∀ᵐ ω ∂P, Tendsto (fun N ↦ F N ω) atTop
       (𝓝 ((s \ {ω | σ ω = ⊤}).indicator (stoppedValueLimsup M τ) ω)) := by
     filter_upwards [hM.ae_tendsto_limsup hP h0] with ω hω
@@ -208,9 +199,8 @@ theorem setLIntegral_stoppedValueLimsup_le (hM : IsENNSupermartingale M ℱ S) (
       have hσN : σ ω ≤ N := by rw [← ha, Nat.cast_withTop, WithTop.coe_le_coe]; exact hN
       exact (indicator_of_mem (⟨hωs.1, hσN⟩ : ω ∈ s ∩ {ω | σ ω ≤ N}) _).symm
     · rw [indicator_of_notMem hωs]
-      refine tendsto_const_nhds.congr fun N ↦ (indicator_of_notMem
-        (fun (h : ω ∈ s ∩ {ω | σ ω ≤ N}) ↦ hωs ?_) _).symm
-      exact ⟨h.1, ne_top_of_le_ne_top (WithTop.natCast_ne_top N) h.2⟩
+      exact tendsto_const_nhds.congr fun N ↦
+        (indicator_of_notMem (fun h ↦ hωs (hsub N h)) _).symm
   calc ∫⁻ ω in s \ {ω | σ ω = ⊤}, stoppedValueLimsup M τ ω ∂P
       = ∫⁻ ω, liminf (fun N ↦ F N ω) atTop ∂P := by
         rw [← lintegral_indicator (hs'.diff htop)]
@@ -256,14 +246,14 @@ its `limsup` is its limit [RW, Fact 7.5]. -/
 theorem ae_tendsto_limsup (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) [IsFiniteMeasure P] :
     ∀ᵐ ω ∂P, Tendsto (fun n ↦ M n ω) atTop (𝓝 (limsup (fun n ↦ M n ω) atTop)) :=
   hM.toIsENNSupermartingale.ae_tendsto_limsup hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
+    (hM.lintegral_zero_ne_top hP)
 
 /-- The almost sure limit of a test supermartingale is almost surely finite under every finite
 member of the null. -/
 theorem ae_limsup_lt_top (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) [IsFiniteMeasure P] :
     ∀ᵐ ω ∂P, limsup (fun n ↦ M n ω) atTop < ∞ :=
   hM.toIsENNSupermartingale.ae_limsup_lt_top hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
+    (hM.lintegral_zero_ne_top hP)
 
 /-- **Optional stopping for test supermartingales.** For stopping times `σ ≤ τ` with values in
 `WithTop ℕ`, a set `s` measurable for the σ-algebra at `σ` and a finite member `P` of the null,
@@ -274,7 +264,7 @@ theorem setLIntegral_stoppedValueLimsup_le (hM : IsTestSupermartingale M ℱ S) 
     (hs : MeasurableSet[hσ.measurableSpace] s) :
     ∫⁻ ω in s, stoppedValueLimsup M τ ω ∂P ≤ ∫⁻ ω in s, stoppedValueLimsup M σ ω ∂P :=
   hM.toIsENNSupermartingale.setLIntegral_stoppedValueLimsup_le hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne hσ hτ hστ hs
+    (hM.lintegral_zero_ne_top hP) hσ hτ hστ hs
 
 /-- The expectation of a test supermartingale at a stopping time with values in `WithTop ℕ` is at
 most its initial expectation, under every finite member of the null. -/
@@ -282,7 +272,7 @@ theorem lintegral_stoppedValueLimsup_le (hM : IsTestSupermartingale M ℱ S) (hP
     [IsFiniteMeasure P] (hτ : IsStoppingTime ℱ τ) :
     ∫⁻ ω, stoppedValueLimsup M τ ω ∂P ≤ ∫⁻ ω, M 0 ω ∂P :=
   hM.toIsENNSupermartingale.lintegral_stoppedValueLimsup_le hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne hτ
+    (hM.lintegral_zero_ne_top hP) hτ
 
 /-- The expectation of a test supermartingale at a stopping time with values in `WithTop ℕ` is at
 most `1`, under every finite member of the null. -/

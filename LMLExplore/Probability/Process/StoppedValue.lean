@@ -28,6 +28,8 @@ optional stopping holds at every stopping time with this convention.
 
 * `MeasureTheory.stoppedValueLimsup_of_eq_coe`, `MeasureTheory.stoppedValueLimsup_of_eq_top`: its
   values at finite and infinite times.
+* `MeasureTheory.stoppedValueLimsup_natCast`: at an `ℕ`-valued random time it reads the process at
+  that time.
 * `MeasureTheory.stoppedValueLimsup_eq_stoppedValue`: where `τ` is finite it agrees with Mathlib's
   `stoppedValue`.
 * `MeasureTheory.tendsto_stoppedValueLimsup_min`: for a convergent process, the values at the
@@ -77,11 +79,17 @@ theorem stoppedValueLimsup_congr {τ' : Ω → WithTop ℕ} (h : τ ω = τ' ω)
     stoppedValueLimsup u τ ω = stoppedValueLimsup u τ' ω := by
   simp only [stoppedValueLimsup, h]
 
-/-- At a constant finite time, `stoppedValueLimsup` is the process at that time. -/
+/-- At a finite random time, the coercion of an `ℕ`-valued one, `stoppedValueLimsup` reads the
+process at that time. -/
 @[simp]
+theorem stoppedValueLimsup_natCast (u : ℕ → Ω → β) (τ : Ω → ℕ) :
+    stoppedValueLimsup u (fun ω ↦ (τ ω : WithTop ℕ)) = fun ω ↦ u (τ ω) ω :=
+  funext fun _ ↦ stoppedValueLimsup_of_eq_coe rfl
+
+/-- At a constant finite time, `stoppedValueLimsup` is the process at that time. -/
 theorem stoppedValueLimsup_const (u : ℕ → Ω → β) (n : ℕ) :
     stoppedValueLimsup u (fun _ ↦ (n : WithTop ℕ)) = u n :=
-  funext fun _ ↦ stoppedValueLimsup_of_eq_coe rfl
+  stoppedValueLimsup_natCast u fun _ ↦ n
 
 /-- At the constant time `⊤`, `stoppedValueLimsup` is the `limsup` of the process. -/
 @[simp]
