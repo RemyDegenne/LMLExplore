@@ -49,9 +49,9 @@ measurable as soon as each test is, and no measurable selection theorem is neede
   nondecreasing in the level is the e-variable property of `⨆ α ∈ Ioo 0 1, φ α / α`, and a family of
   `[0, 1]`-valued tests is post-hoc valid exactly when it is dominated by the tests
   `min (α * E) 1` of an e-variable `E`.
-* `ProbabilityTheory.isPostHocValid_indicator_iff_isEVar`: post-hoc p-variables are the inverses
-  of e-variables, and `ProbabilityTheory.isPVar_of_isPostHocValid_indicator`: they are
-  p-variables.
+* `ProbabilityTheory.isPostHocValid_indicator_iff_isEVar`: the tests `𝟙{p ≤ α}` of a statistic `p`
+  are post-hoc valid exactly when `p⁻¹`, truncated to `0` on `{1 ≤ p}`, is an e-variable, and
+  `ProbabilityTheory.isPVar_of_isPostHocValid_indicator`: such a `p` is a p-variable.
 
 ## References
 
@@ -105,11 +105,12 @@ theorem IsPostHocValid.lintegral_div_le_one (h : IsPostHocValid φ S) (hP : P �
 theorem IsPostHocValid.lintegral_le (h : IsPostHocValid φ S) (hP : P ∈ S) {α : ℝ≥0∞}
     (hα : α ∈ Ioo 0 1) :
     ∫⁻ ω, φ α ω ∂P ≤ α := by
-  have h_le := h.lintegral_div_le_one hP (ℓ := fun _ ↦ α) fun _ ↦ hα
-  simp_rw [div_eq_mul_inv] at h_le
-  rw [lintegral_mul_const' _ _ (ENNReal.inv_ne_top.2 hα.1.ne'), ← div_eq_mul_inv,
-    ENNReal.div_le_iff hα.1.ne' (ne_top_of_lt hα.2), one_mul] at h_le
-  exact h_le
+  have h_le : ∫⁻ ω, φ α ω / α ∂P ≤ 1 := h.lintegral_div_le_one hP (ℓ := fun _ ↦ α) fun _ ↦ hα
+  calc ∫⁻ ω, φ α ω ∂P = (∫⁻ ω, φ α ω / α ∂P) * α := by
+        rw [← lintegral_mul_const' _ _ (ne_top_of_lt hα.2)]
+        simp_rw [ENNReal.div_mul_cancel hα.1.ne' (ne_top_of_lt hα.2)]
+  _ ≤ 1 * α := by gcongr
+  _ = α := one_mul α
 
 /-! ### Reduction to countably many levels -/
 
@@ -282,12 +283,14 @@ theorem isPostHocValid_indicator_iff_isEVar (hS : ∀ P ∈ S, IsProbabilityMeas
     (hp : Measurable p) :
     IsPostHocValid (fun α ↦ {ω | p ω ≤ α}.indicator 1) S ↔
       IsEVar ({ω | p ω < 1}.indicator fun ω ↦ (p ω)⁻¹) S := by
-  have h_meas : Measurable ({ω | p ω < 1}.indicator fun ω ↦ (p ω)⁻¹) :=
-    hp.inv.indicator (measurableSet_lt hp measurable_const)
-  rw [isEVar_iff_lintegral_le_one hS]
-  simp_rw [← iSup_indicator_le_div_eq_indicator_inv]
-  exact ⟨fun h ↦ ⟨by simpa [← iSup_indicator_le_div_eq_indicator_inv] using h_meas,
-    h.lintegral_iSup_div_le_one⟩, fun h ↦ ⟨h.2⟩⟩
+  -- the tests are measurable and nondecreasing in the level, and their post-hoc supremum is the
+  -- truncated inverse of `p`
+  have hmono (ω : Ω) : MonotoneOn (fun α ↦ {ω | p ω ≤ α}.indicator (1 : Ω → ℝ≥0∞) ω) (Ioo 0 1) :=
+    fun _ _ _ _ hαβ ↦
+      indicator_le_indicator_of_subset (fun _ h ↦ le_trans h hαβ) (fun _ ↦ zero_le) ω
+  rw [isPostHocValid_iff_isEVar_iSup hS
+    (fun _ _ ↦ measurable_one.indicator (measurableSet_le hp measurable_const)) hmono,
+    funext (iSup_indicator_le_div_eq_indicator_inv p)]
 
 /-- A post-hoc p-variable is a p-variable: if the tests `𝟙{p ≤ α}` of a measurable `p` are
 post-hoc valid for a null of probability measures, then `p` is a p-variable. -/
