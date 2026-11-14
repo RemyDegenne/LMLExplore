@@ -32,11 +32,10 @@ conditional e-variables with predictable weights [WSJ26], and betting
 
 Test supermartingales are closed under the operations a statistician performs on running
 evidence: stopping at a stopping time, taking the minimum of two of them, mixing a measurable
-family over a probability measure (Tonelli in `ℝ≥0∞`, with no integrability hypothesis), and
-optional continuation, in which the evidence `A τ` gathered up to a stopping time `τ` is
-multiplied by a new supermartingale `B` that equals `1` up to time `τ` [RW, Proposition 7.9].
-These closure properties transfer to e-processes through their domination by test
-supermartingales.
+family over a probability measure for a null of s-finite measures (Tonelli in `ℝ≥0∞`, with no
+integrability hypothesis), and optional continuation, in which the evidence `A τ` gathered up to a
+stopping time `τ` is multiplied by a new supermartingale `B` that equals `1` up to time `τ`
+[RW, Proposition 7.9].
 
 ## Main definitions
 
@@ -71,7 +70,8 @@ supermartingales.
   `B = 1` of optional continuation.
 * `ProbabilityTheory.IsTestSupermartingale.inf`: the minimum of two test supermartingales.
 * `ProbabilityTheory.isTestSupermartingale_lintegral`,
-  `ProbabilityTheory.isTestMartingale_lintegral`: mixtures over a probability measure.
+  `ProbabilityTheory.isTestMartingale_lintegral`: mixtures over a probability measure, for a null
+  of s-finite measures.
 
 ## References
 
