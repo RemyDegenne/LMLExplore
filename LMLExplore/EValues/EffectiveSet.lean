@@ -17,8 +17,9 @@ Statlib's duality `maxUtility_eq_iInf_klIntegral_effectiveSet` minimizes, and it
 alternatives that a null can be tested against: e-variables cannot distinguish `S` from its
 effective null, and every probability measure outside of it is detected by a level-`α` test.
 
-This file proves the structural properties of the effective null, for any set of measures `S` on
-any measurable space, with no dominating measure and no convexity.
+This file proves the structural properties of the effective null on any measurable space, with no
+dominating measure and no convexity. Unless stated otherwise below, the results hold for any set of
+measures `S`.
 
 ## Main statements
 
@@ -32,21 +33,23 @@ any measurable space, with no dominating measure and no convexity.
 * `ProbabilityTheory.isLowerSet_effectiveSet`: the effective null is solid.
 * `ProbabilityTheory.mem_effectiveSet_of_tendsto`: the effective null is closed under setwise
   convergence, along any filter.
-* `ProbabilityTheory.isEVar_effectiveSet_inter_iff`: `S` and the probability measures of its
-  effective null have the same e-variables, so that
-  `ProbabilityTheory.effectiveSet_effectiveSet_inter` they have the same effective null.
+* `ProbabilityTheory.isEVar_effectiveSet_inter_iff`: for a null `S` of probability measures, `S`
+  and the probability measures of its effective null have the same e-variables, and hence
+  (`ProbabilityTheory.effectiveSet_effectiveSet_inter`) the same effective null.
 * `ProbabilityTheory.absolutelyContinuous_of_mem_effectiveSet`: if every member of `S` is
   absolutely continuous with respect to `μ`, so is every member of the effective null.
-* `ProbabilityTheory.exists_test_iff_notMem_effectiveSet`: a measure `Q` admits, for some
-  `α ∈ (0, 1)`, a level-`α` test for `S` with power larger than `α` under `Q` exactly when `Q` is
-  not in the effective null of `S` [RW, Theorem 6.10].
+* `ProbabilityTheory.exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet`: for a null `S` of
+  finite measures, a measure outside the effective null of `S` is detected by a bounded e-variable.
+* `ProbabilityTheory.exists_test_iff_notMem_effectiveSet`: for a null `S` of probability measures,
+  a measure `Q` admits, for some `α ∈ (0, 1)`, a level-`α` test for `S` with power larger than `α`
+  under `Q` exactly when `Q` is not in the effective null of `S` [RW, Theorem 6.10].
 
 ## References
 
 * [LRR25] M. Larsson, A. Ramdas and J. Ruf, *The numeraire e-variable and reverse information
   projection*, Ann. Statist. 53 (2025), arXiv:2402.18810, Definition 3.1 and Lemma 4.5.
 * [RW] A. Ramdas and R. Wang, *Hypothesis Testing with E-values*, Foundations and Trends in
-  Statistics 1 (2025), arXiv:2410.23614v6, §6.3.1 and Theorem 6.10.
+  Statistics 1 (2025), arXiv:2410.23614v6, Fact 3.6, §6.3.1 and Theorem 6.10.
 -/
 
 public section
@@ -60,6 +63,7 @@ namespace ProbabilityTheory
 variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {S T : Set (Measure Ω)} {μ ν Q : Measure Ω}
 
 /-- The effective null is monotone in the null. -/
+@[gcongr]
 theorem effectiveSet_mono (hST : S ⊆ T) : effectiveSet S ⊆ effectiveSet T :=
   fun _ hμ X hX ↦ hμ X (hX.anti_set hST)
 
@@ -118,7 +122,8 @@ theorem mem_effectiveSet_of_tendsto {ι : Type*} {l : Filter ι} [l.NeBot] {μs 
     (hμs : ∀ᶠ i in l, μs i ∈ effectiveSet S)
     (h : ∀ s, MeasurableSet s → Tendsto (fun i ↦ μs i s) l (𝓝 (μ s))) :
     μ ∈ effectiveSet S := fun X hX ↦
-  (lintegral_le_liminf_lintegral_of_tendsto_measure hX.measurable h).trans
+  (lintegral_le_liminf_lintegral_of_forall_measurableSet_measure_le_liminf_measure hX.measurable
+    fun s hs ↦ (h s hs).liminf_eq.ge).trans
     (liminf_le_of_frequently_le (hμs.mono fun _ hi ↦ hi X hX).frequently)
 
 /-- A measurable set that is null for every member of `S` is null for every member of the
@@ -145,8 +150,8 @@ theorem absolutelyContinuous_of_mem_effectiveSet (hμ : μ ∈ effectiveSet S)
   refine Measure.AbsolutelyContinuous.mk fun s hs hνs ↦ ?_
   exact measure_eq_zero_of_mem_effectiveSet hμ hs fun P hP ↦ hS P hP hνs
 
-/-- The e-variables for the probability measures of the effective null of `S` are e-variables
-for `S`. -/
+/-- An e-variable for `S` is an e-variable for the probability measures of the effective null of
+`S`. -/
 theorem IsEVar.effectiveSet_inter {X : Ω → ℝ≥0∞} (hX : IsEVar X S) :
     IsEVar X (effectiveSet S ∩ {μ | IsProbabilityMeasure μ}) :=
   .of_lintegral_le_one (S := effectiveSet S ∩ {μ | IsProbabilityMeasure μ}) (fun _ hμ ↦ hμ.2)
@@ -166,10 +171,32 @@ theorem effectiveSet_effectiveSet_inter (hS : ∀ P ∈ S, IsProbabilityMeasure 
   ext μ
   simp only [mem_effectiveSet_iff, isEVar_effectiveSet_inter_iff hS]
 
+/-- A measure `Q` outside the effective null of a null `S` of finite measures is detected by a
+bounded e-variable: some e-variable for `S` bounded by an integer `N ≥ 2` has expectation larger
+than `1` under `Q`. It is the truncation `min X N` of an e-variable `X` with expectation larger
+than `1` under `Q`, for `N` large enough. -/
+theorem exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet
+    (hS : ∀ P ∈ S, IsFiniteMeasure P) (hQ : Q ∉ effectiveSet S) :
+    ∃ Y : Ω → ℝ≥0∞, ∃ N : ℕ, 2 ≤ N ∧ IsEVar Y S ∧ (∀ ω, Y ω ≤ N) ∧ 1 < ∫⁻ ω, Y ω ∂Q := by
+  obtain ⟨X, hX, hXQ⟩ : ∃ X, IsEVar X S ∧ 1 < ∫⁻ ω, X ω ∂Q := by
+    simpa [mem_effectiveSet_iff] using hQ
+  -- By monotone convergence, the truncations `min X N` have expectation larger than `1` under
+  -- `Q` from some level `N ≥ 2` on.
+  have hXm := hX.measurable
+  have h_tendsto : Tendsto (fun N : ℕ ↦ ∫⁻ ω, min (X ω) N ∂Q) atTop (𝓝 (∫⁻ ω, X ω ∂Q)) := by
+    refine lintegral_tendsto_of_tendsto_of_monotone (fun N ↦ by fun_prop) (.of_forall
+      fun ω N M hNM ↦ min_le_min_left _ (by exact_mod_cast hNM)) (.of_forall fun ω ↦ ?_)
+    simpa using (tendsto_const_nhds (x := X ω)).min ENNReal.tendsto_nat_nhds_top
+  obtain ⟨N, hNQ, hN2⟩ := ((h_tendsto.eventually (lt_mem_nhds hXQ)).and
+    (eventually_ge_atTop 2)).exists
+  exact ⟨fun ω ↦ min (X ω) N, N, hN2, hX.mono hS (by fun_prop) fun ω ↦ min_le_left _ _,
+    fun ω ↦ min_le_right _ _, hNQ⟩
+
 /-- A measure `Q` is outside the effective null of a null `S` of probability measures exactly
 when, for some level `α ∈ (0, 1)`, some level-`α` test `φ` for `S` (a measurable function with
 values in `[0, 1]` and expectation at most `α` under every member of `S`) has expectation larger
-than `α` under `Q` [RW, Theorem 6.10]. -/
+than `α` under `Q` [RW, Theorem 6.10]. Both directions pass between a level-`α` test `φ` and the
+`[0, α⁻¹]`-valued e-variable `α⁻¹ * φ` [RW, Fact 3.6]. -/
 theorem exists_test_iff_notMem_effectiveSet (hS : ∀ P ∈ S, IsProbabilityMeasure P) :
     (∃ α : ℝ≥0∞, 0 < α ∧ α < 1 ∧ ∃ φ : Ω → ℝ≥0∞, Measurable φ ∧ φ ≤ 1 ∧
       (∀ P ∈ S, ∫⁻ ω, φ ω ∂P ≤ α) ∧ α < ∫⁻ ω, φ ω ∂Q) ↔ Q ∉ effectiveSet S := by
@@ -185,38 +212,28 @@ theorem exists_test_iff_notMem_effectiveSet (hS : ∀ P ∈ S, IsProbabilityMeas
     rw [lintegral_const_mul _ hφ,
       ENNReal.inv_mul_le_iff hα0.ne' (hα1.trans ENNReal.one_lt_top).ne, mul_one] at h
     exact (h.trans_lt hφQ).false
-  · -- An e-variable with expectation larger than `1` under `Q`, truncated at a large level `N`
-    -- and divided by `N`, is a level-`N⁻¹` test with power larger than `N⁻¹` under `Q`.
+  · -- A bounded e-variable with expectation larger than `1` under `Q`, divided by its bound `N`,
+    -- is a level-`N⁻¹` test with power larger than `N⁻¹` under `Q`.
     intro hQ
-    obtain ⟨X, hX, hXQ⟩ : ∃ X, IsEVar X S ∧ 1 < ∫⁻ ω, X ω ∂Q := by
-      simpa [mem_effectiveSet_iff] using hQ
-    -- By monotone convergence, the truncations `min X N` have expectation larger than `1` under
-    -- `Q` from some level `N ≥ 2` on.
-    have hXm := hX.measurable
-    have h_tendsto : Tendsto (fun N : ℕ ↦ ∫⁻ ω, min (X ω) N ∂Q) atTop (𝓝 (∫⁻ ω, X ω ∂Q)) := by
-      refine lintegral_tendsto_of_tendsto_of_monotone (fun N ↦ by fun_prop) (.of_forall
-        fun ω N M hNM ↦ min_le_min_left _ (by exact_mod_cast hNM)) (.of_forall fun ω ↦ ?_)
-      simpa using (tendsto_const_nhds (x := X ω)).min ENNReal.tendsto_nat_nhds_top
-    obtain ⟨N, hNQ, hN2⟩ := ((h_tendsto.eventually (lt_mem_nhds hXQ)).and
-      (eventually_ge_atTop 2)).exists
+    obtain ⟨Y, N, hN2, hY, hYN, hYQ⟩ := exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet
+      (fun P hP ↦ have := hS P hP; inferInstance) hQ
+    have hYm := hY.measurable
     have hN0 : (N : ℝ≥0∞) ≠ 0 := by exact_mod_cast (by omega : N ≠ 0)
     have hNtop : (N : ℝ≥0∞) ≠ ∞ := ENNReal.natCast_ne_top N
     refine ⟨(N : ℝ≥0∞)⁻¹, ENNReal.inv_pos.mpr hNtop, ENNReal.inv_lt_one.mpr
-      (by exact_mod_cast (by omega : 1 < N)), fun ω ↦ (N : ℝ≥0∞)⁻¹ * min (X ω) N, by fun_prop,
+      (by exact_mod_cast (by omega : 1 < N)), fun ω ↦ (N : ℝ≥0∞)⁻¹ * Y ω, by fun_prop,
       fun ω ↦ ?_, fun P hP ↦ ?_, ?_⟩
-    · calc (N : ℝ≥0∞)⁻¹ * min (X ω) N ≤ (N : ℝ≥0∞)⁻¹ * N := by gcongr; exact min_le_right _ _
+    · calc (N : ℝ≥0∞)⁻¹ * Y ω ≤ (N : ℝ≥0∞)⁻¹ * N := by gcongr; exact hYN ω
       _ = 1 := ENNReal.inv_mul_cancel hN0 hNtop
     · have := hS P hP
-      rw [lintegral_const_mul _ (by fun_prop)]
-      calc (N : ℝ≥0∞)⁻¹ * ∫⁻ ω, min (X ω) N ∂P ≤ (N : ℝ≥0∞)⁻¹ * ∫⁻ ω, X ω ∂P := by
-            gcongr with ω; exact min_le_left _ _
-      _ ≤ (N : ℝ≥0∞)⁻¹ * 1 := by
-            gcongr; simpa using hX.lintegral_le_measure_univ P hP
+      rw [lintegral_const_mul _ hYm]
+      calc (N : ℝ≥0∞)⁻¹ * ∫⁻ ω, Y ω ∂P ≤ (N : ℝ≥0∞)⁻¹ * 1 := by
+            gcongr; simpa using hY.lintegral_le_measure_univ P hP
       _ = (N : ℝ≥0∞)⁻¹ := mul_one _
-    · rw [lintegral_const_mul _ (by fun_prop)]
+    · rw [lintegral_const_mul _ hYm]
       calc (N : ℝ≥0∞)⁻¹ = (N : ℝ≥0∞)⁻¹ * 1 := (mul_one _).symm
-      _ < (N : ℝ≥0∞)⁻¹ * ∫⁻ ω, min (X ω) N ∂Q :=
+      _ < (N : ℝ≥0∞)⁻¹ * ∫⁻ ω, Y ω ∂Q :=
             ENNReal.mul_lt_mul_right (ENNReal.inv_ne_zero.mpr hNtop) (ENNReal.inv_ne_top.mpr hN0)
-              hNQ
+              hYQ
 
 end ProbabilityTheory
