@@ -182,6 +182,25 @@ theorem effectiveSet_effectiveSet_inter (hS : ∀ P ∈ S, IsProbabilityMeasure 
   ext μ
   simp only [mem_effectiveSet_iff, isEVar_effectiveSet_inter_iff hS]
 
+/-- The truncation `min X c` of an e-variable `X` for `S` at a level `c ≥ 1` is an e-variable for
+`S`. -/
+theorem IsEVar.min_const {X : Ω → ℝ≥0∞} (hX : IsEVar X S) {c : ℝ≥0∞} (hc : 1 ≤ c) :
+    IsEVar (fun ω ↦ min (X ω) c) S where
+  measurable := hX.measurable.min measurable_const
+  eintegral_ne_bot P hP := by
+    -- The negative part of `y - 1` is `1 - y`, and `1 - min y c = 1 - y` since `1 ≤ c`, so
+    -- `min X c - 1` has the same negative part as `X - 1`.
+    have h_neg (y : ℝ≥0∞) : (-((y : EReal) - 1)).toENNReal = 1 - y := by
+      simpa [EReal.toENNReal_sub, EReal.coe_ennreal_nonneg] using
+        congrArg EReal.toENNReal (EReal.neg_coe_ennreal_sub (u := y) (.inr ENNReal.one_ne_top))
+    have h_min (y : ℝ≥0∞) : 1 - min y c = 1 - y := by
+      rcases le_total y c with h | h
+      · simp [h]
+      · simp [h, tsub_eq_zero_of_le hc, tsub_eq_zero_of_le (hc.trans h)]
+    simpa [eintegral_ne_bot_iff_lintegral_ne_top, h_neg, h_min] using hX.eintegral_ne_bot P hP
+  eintegral_nonpos P hP := (eintegral_mono fun ω ↦
+    EReal.sub_le_sub (mod_cast min_le_left _ _) le_rfl).trans (hX.eintegral_nonpos P hP)
+
 /-- A measure `Q` outside the effective null of a null `S` is detected by a
 bounded e-variable: some e-variable for `S` bounded by an integer `N ≥ 2` has expectation larger
 than `1` under `Q`. -/
@@ -199,20 +218,8 @@ theorem exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet (hQ : Q ∉ effecti
     simpa using (tendsto_const_nhds (x := X ω)).min ENNReal.tendsto_nat_nhds_top
   obtain ⟨N, hNQ, hN2⟩ := ((h_tendsto.eventually (lt_mem_nhds hXQ)).and
     (eventually_ge_atTop 2)).exists
-  -- Since `N ≥ 1`, the truncation `min X N - 1` has the same negative part as `X - 1`, and a
-  -- smaller positive part, so it is an e-variable whatever the members of `S`.
-  refine ⟨fun ω ↦ min (X ω) N, N, hN2, ⟨by fun_prop, fun P hP ↦ ?_, fun P hP ↦ ?_⟩,
+  exact ⟨fun ω ↦ min (X ω) N, N, hN2, hX.min_const (by exact_mod_cast (by omega : 1 ≤ N)),
     fun ω ↦ min_le_right _ _, hNQ⟩
-  · refine eintegral_ne_bot_iff_lintegral_ne_top.mpr <| ne_top_of_le_ne_top
-      (eintegral_ne_bot_iff_lintegral_ne_top.mp (hX.eintegral_ne_bot P hP))
-      (lintegral_mono fun ω ↦ ?_)
-    rcases le_total (X ω) N with h | h
-    · rw [min_eq_left h]
-    · rw [min_eq_right h, EReal.toENNReal_of_nonpos (EReal.neg_le_zero.mpr <|
-        (EReal.sub_nonneg (by simp) (by simp)).mpr (by exact_mod_cast (by omega : 1 ≤ N)))]
-      exact bot_le
-  · exact (eintegral_mono fun ω ↦ EReal.sub_le_sub (by exact_mod_cast min_le_left _ _) le_rfl).trans
-      (hX.eintegral_nonpos P hP)
 
 /-- A measure `Q` is outside the effective null of a null `S` of probability measures exactly
 when, for some level `α ∈ (0, 1)`, some level-`α` test `φ` for `S` (a measurable function with
