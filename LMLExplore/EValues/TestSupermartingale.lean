@@ -8,6 +8,7 @@ module
 public import LMLExplore.EValues.CondEVariable
 public import LMLExplore.Probability.Martingale.Basic
 public import LMLExplore.Probability.Process.Adapted
+public import LMLExplore.Probability.Process.Stopping
 
 /-!
 # Test supermartingales and wealth processes
@@ -33,8 +34,9 @@ Test supermartingales are closed under the operations a statistician performs on
 evidence: stopping at a stopping time, taking the minimum of two of them, mixing a measurable
 family over a probability measure (Tonelli in `ℝ≥0∞`, with no integrability hypothesis), and
 optional continuation, in which the evidence `A τ` gathered up to a stopping time `τ` is
-multiplied by a new process `B` that starts at `1` after `τ` [RW, Proposition 7.9]. These closure
-properties transfer to e-processes through their domination by test supermartingales.
+multiplied by a new supermartingale `B` that equals `1` up to time `τ` [RW, Proposition 7.9].
+These closure properties transfer to e-processes through their domination by test
+supermartingales.
 
 ## Main definitions
 
@@ -63,8 +65,10 @@ properties transfer to e-processes through their domination by test supermarting
   ratios, which are conditional e-variables [WSR24, Proposition 3].
 * `ProbabilityTheory.IsTestSupermartingale.stoppedProcess_mul`,
   `ProbabilityTheory.IsTestMartingale.stoppedProcess_mul`: optional continuation
-  [RW, Proposition 7.9]; `ProbabilityTheory.IsTestSupermartingale.stoppedProcess` and
-  `ProbabilityTheory.IsTestMartingale.stoppedProcess` are the case `B = 1` of stopped processes.
+  [RW, Proposition 7.9].
+* `ProbabilityTheory.IsTestSupermartingale.stoppedProcess`,
+  `ProbabilityTheory.IsTestMartingale.stoppedProcess`: stopped test (super)martingales, the case
+  `B = 1` of optional continuation.
 * `ProbabilityTheory.IsTestSupermartingale.inf`: the minimum of two test supermartingales.
 * `ProbabilityTheory.isTestSupermartingale_lintegral`,
   `ProbabilityTheory.isTestMartingale_lintegral`: mixtures over a probability measure.
@@ -471,17 +475,20 @@ theorem IsENNSupermartingale.setLIntegral_mul_succ_le (hM : IsENNSupermartingale
     (hM.measurable (n + 1)).aemeasurable (hM.measurable n).aemeasurable
     (hM.setLIntegral_succ_le P hP n) (hY.indicator hs)
 
-/-- A factor `Y` and a set `s` that are `ℱ n`-measurable can be pulled out of a step of a test
-martingale: `∫⁻ ω in s, Y ω * M (n + 1) ω ∂P = ∫⁻ ω in s, Y ω * M n ω ∂P`. -/
-theorem IsTestMartingale.setLIntegral_mul_succ_eq (hM : IsTestMartingale M ℱ S)
-    (hP : P ∈ S) {n : ℕ} {Y : Ω → ℝ≥0∞} (hY : Measurable[ℱ n] Y) {s : Set Ω}
-    (hs : MeasurableSet[ℱ n] s) :
+/-- A factor `Y` and a set `s` that are `ℱ n`-measurable can be pulled out of a martingale step
+of an adapted `ℝ≥0∞`-valued process, that is, a step whose set integrals over `ℱ n`-measurable
+sets agree at times `n` and `n + 1`:
+`∫⁻ ω in s, Y ω * M (n + 1) ω ∂P = ∫⁻ ω in s, Y ω * M n ω ∂P`. This applies to a test martingale,
+but no bound on the initial expectation is needed. -/
+theorem _root_.MeasureTheory.Adapted.setLIntegral_mul_succ_eq (hM : Adapted ℱ M) {n : ℕ}
+    (hMn : ∀ s, MeasurableSet[ℱ n] s → ∫⁻ ω in s, M (n + 1) ω ∂P = ∫⁻ ω in s, M n ω ∂P)
+    {Y : Ω → ℝ≥0∞} (hY : Measurable[ℱ n] Y) {s : Set Ω} (hs : MeasurableSet[ℱ n] s) :
     ∫⁻ ω in s, Y ω * M (n + 1) ω ∂P = ∫⁻ ω in s, Y ω * M n ω ∂P := by
   rw [← lintegral_indicator (ℱ.le n s hs), ← lintegral_indicator (ℱ.le n s hs)]
   simp_rw [indicator_mul_left]
   exact lintegral_mul_eq_lintegral_mul_of_forall_setLIntegral_eq (ℱ.le n)
-    (hM.measurable (n + 1)).aemeasurable (hM.measurable n).aemeasurable
-    (hM.setLIntegral_succ_eq P hP n) (hY.indicator hs)
+    ((hM (n + 1)).mono (ℱ.le (n + 1)) le_rfl).aemeasurable
+    ((hM n).mono (ℱ.le n) le_rfl).aemeasurable hMn (hY.indicator hs)
 
 /-! ### Minima -/
 
@@ -574,20 +581,23 @@ theorem IsTestSupermartingale.stoppedProcess_mul {A B : ℕ → Ω → ℝ≥0�
   ⟨hA.toIsENNSupermartingale.stoppedProcess_mul hτ hB hB1, fun P hP ↦ by
     simpa [stoppedProcess_eq_of_le, hB1 0 _ (by simp)] using hA.lintegral_zero_le P hP⟩
 
-/-- **Optional continuation of test martingales** [RW, Proposition 7.9]. For test martingales `A`
-and `B` and a stopping time `τ` such that `B n = 1` whenever `n ≤ τ`, the process
-`stoppedProcess A τ * B` is a test martingale. -/
+/-- **Optional continuation of test martingales** [RW, Proposition 7.9]. For a test martingale
+`A`, a stopping time `τ` and an adapted `ℝ≥0∞`-valued process `B` whose set integrals over
+`ℱ n`-measurable sets agree at times `n` and `n + 1` under every member of the null, such that
+`B n = 1` whenever `n ≤ τ`, the process `stoppedProcess A τ * B` is a test martingale. -/
 theorem IsTestMartingale.stoppedProcess_mul {A B : ℕ → Ω → ℝ≥0∞}
     (hA : IsTestMartingale A ℱ S) {τ : Ω → WithTop ℕ} (hτ : IsStoppingTime ℱ τ)
-    (hB : IsTestMartingale B ℱ S) (hB1 : ∀ (n : ℕ) ω, (n : WithTop ℕ) ≤ τ ω → B n ω = 1) :
+    (hBa : Adapted ℱ B) (hB : ∀ P ∈ S, ∀ n s, MeasurableSet[ℱ n] s →
+      ∫⁻ ω in s, B (n + 1) ω ∂P = ∫⁻ ω in s, B n ω ∂P)
+    (hB1 : ∀ (n : ℕ) ω, (n : WithTop ℕ) ≤ τ ω → B n ω = 1) :
     IsTestMartingale (stoppedProcess A τ * B) ℱ S := by
   have hAτ := hA.adapted.stoppedProcess_of_discrete hτ
-  refine ⟨hAτ.mul hB.adapted, fun P hP ↦ ?_, fun P hP n s hs ↦ ?_⟩
+  refine ⟨hAτ.mul hBa, fun P hP ↦ ?_, fun P hP n s hs ↦ ?_⟩
   · simpa [stoppedProcess_eq_of_le, hB1 0 _ (by simp)] using hA.lintegral_zero_le P hP
   rw [setLIntegral_stoppedProcess_mul_eq hτ hB1 n.le_succ le_rfl hs,
     setLIntegral_stoppedProcess_mul_eq hτ hB1 le_rfl n.le_succ hs]
   congr 1
-  · exact hB.setLIntegral_mul_succ_eq hP (hAτ n) (hs.inter (hτ.measurableSet_le n))
+  · exact hBa.setLIntegral_mul_succ_eq (hB P hP n) (hAτ n) (hs.inter (hτ.measurableSet_le n))
   · exact hA.setLIntegral_succ_eq P hP n _ (hs.diff (hτ.measurableSet_le n))
 
 /-- An `ℝ≥0∞`-valued supermartingale stopped at a stopping time is a supermartingale. -/
@@ -607,28 +617,14 @@ theorem IsTestSupermartingale.stoppedProcess (hM : IsTestSupermartingale M ℱ S
 /-- A test martingale stopped at a stopping time is a test martingale. -/
 theorem IsTestMartingale.stoppedProcess (hM : IsTestMartingale M ℱ S) {τ : Ω → WithTop ℕ}
     (hτ : IsStoppingTime ℱ τ) : IsTestMartingale (stoppedProcess M τ) ℱ S := by
-  refine ⟨hM.adapted.stoppedProcess_of_discrete hτ, fun P hP ↦ ?_, fun P hP n s hs ↦ ?_⟩
-  · simpa [stoppedProcess_eq_of_le] using hM.lintegral_zero_le P hP
-  have h (j : ℕ) (hnj : n ≤ j) (hjn : j ≤ n + 1) :=
-    setLIntegral_stoppedProcess_mul_eq (P := P) (A := M) (B := 1) hτ (fun _ _ _ ↦ rfl) hnj hjn hs
-  simp only [mul_one, Pi.one_apply] at h
-  rw [h (n + 1) n.le_succ le_rfl, h n le_rfl n.le_succ]
-  congr 1
-  exact hM.setLIntegral_succ_eq P hP n _ (hs.diff (hτ.measurableSet_le n))
+  simpa using hM.stoppedProcess_mul hτ (B := 1) (fun _ ↦ measurable_const)
+    (fun _ _ _ _ _ ↦ rfl) fun _ _ _ ↦ rfl
 
 /-! ### Mixtures -/
 
 section Mixture
 
 variable {Θ : Type*} {mΘ : MeasurableSpace Θ} {π : Measure Θ} {M : Θ → ℕ → Ω → ℝ≥0∞}
-
-/-- The mixture of a family of processes that is jointly measurable at every time, measurable in
-the observations for `ℱ n` at time `n`, is adapted. -/
-private lemma adapted_lintegral [SFinite π]
-    (hM_meas : ∀ n, Measurable[mΘ.prod (ℱ n)] fun p : Θ × Ω ↦ M p.1 n p.2) :
-    Adapted ℱ (fun n ω ↦ ∫⁻ θ, M θ n ω ∂π) := fun n ↦
-  -- the measurable space on `Ω` is `ℱ n`, not the ambient `mΩ`, hence the explicit instances
-  @Measurable.lintegral_prod_left' Θ Ω mΘ (ℱ n) π _ _ (hM_meas n)
 
 /-- Integrals of a mixture over a set and over the mixing measure can be swapped. -/
 private lemma setLIntegral_lintegral_swap [SFinite π] (hP : SFinite P)
@@ -650,7 +646,7 @@ private lemma lintegral_lintegral_le_one [IsProbabilityMeasure π] (hP : SFinite
 
 /-- **Mixtures of `ℝ≥0∞`-valued supermartingales.** For an s-finite measure `π` and a family
 `M θ` of supermartingales, jointly measurable in `(θ, ω)` for `ℱ n` at every time `n`, the
-mixture `∫⁻ θ, M θ n ω ∂π` is a supermartingale under every s-finite member of the null. No
+mixture `∫⁻ θ, M θ n ω ∂π` is a supermartingale for every null `S` of s-finite measures. No
 integrability is needed. -/
 theorem isENNSupermartingale_lintegral [SFinite π] (hS : ∀ P ∈ S, SFinite P)
     (hM_meas : ∀ n, Measurable[mΘ.prod (ℱ n)] fun p : Θ × Ω ↦ M p.1 n p.2)
