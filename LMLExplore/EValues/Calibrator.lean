@@ -44,10 +44,11 @@ the upper semicontinuous calibrators with `f 0 = ∞` and `∫₀¹ f = 1` [RW, 
 
 ## Main statements
 
-* `ProbabilityTheory.IsPToECalibrator.isEVar_comp`: a calibrator turns every p-variable into an
-  e-variable [VW21, Proposition 2.1], and `ProbabilityTheory.isPToECalibrator_iff_isEVar`: an
-  antitone function vanishing on `(1, ∞]` is a calibrator as soon as it turns the identity of
-  `[0, 1]`, under Lebesgue measure, into an e-variable.
+* `ProbabilityTheory.IsPToECalibrator.isEVar_comp`: for a null of probability measures, a
+  calibrator turns every p-variable into an e-variable [VW21, Proposition 2.1], and
+  `ProbabilityTheory.isPToECalibrator_iff_isEVar`: an antitone function vanishing on `(1, ∞]` is
+  a calibrator as soon as it turns the identity of `[0, 1]`, under Lebesgue measure, into an
+  e-variable.
 * `ProbabilityTheory.IsPToECalibrator.le_inv`: a calibrator is at most `x ↦ x⁻¹`.
 * `ProbabilityTheory.isAdmissiblePToECalibrator_iff`: the characterization of admissible
   calibrators [RW, Proposition 2.5].
@@ -82,8 +83,9 @@ variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {S : Set (Measure Ω)} {p : Ω 
 
 /-- A **p-to-e calibrator** is an antitone `f : ℝ≥0∞ → ℝ≥0∞`, zero on `(1, ∞]`, with
 `∫₀¹ f ≤ 1`. This is the characterization of [RW, Proposition 2.5], taken as the definition:
-these are exactly the antitone functions, zero on `(1, ∞]`, that turn every p-variable into an
-e-variable (`IsPToECalibrator.isEVar_comp`, `isPToECalibrator_iff_isEVar`). -/
+these are exactly the antitone functions, zero on `(1, ∞]`, that turn every p-variable of every
+null of probability measures into an e-variable (`IsPToECalibrator.isEVar_comp`,
+`isPToECalibrator_iff_isEVar`). -/
 structure IsPToECalibrator (f : ℝ≥0∞ → ℝ≥0∞) : Prop where
   antitone : Antitone f
   eq_zero_of_one_lt : ∀ x, 1 < x → f x = 0
