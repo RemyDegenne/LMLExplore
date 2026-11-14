@@ -145,7 +145,7 @@ variable (M π) in
 @[simp]
 lemma value_zero [IsSFiniteKernel π] (s : 𝓢) : M.value 0 π s = M.policyReward π s := by
   rw [value_def, tsum_eq_single 0 fun n hn ↦ by simp [hn]]
-  rw [pow_zero, one_mul, pow_zero, Kernel.one_def, Kernel.id_apply,
+  simp [Kernel.one_def, Kernel.id_apply,
     integral_dirac' _ _ measurable_policyReward.stronglyMeasurable]
 
 section Value

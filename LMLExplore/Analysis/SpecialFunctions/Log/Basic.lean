@@ -52,6 +52,8 @@ import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 * `Real.log_div_le_log_one_div_add_log`: `log (x / δ) ≤ log (1 / δ) + log x` for `δ ∈ (0, 1]`.
 * `Real.natCeil_log_inv_one_sub_add_one_le`: `⌈log (1 - γ)⁻¹⌉₊ + 1 ≤ 2 log (e / (1 - γ))` for
   `0 ≤ γ < 1`.
+* `Real.mul_exp_neg_log_div_le`: `c exp (-log (x / δ)) ≤ δ / n` for `c n ≤ x`, the count of
+  confidence levels in union bounds over `n` events.
 * `Real.eventually_log_le_mul_of_isBigO`: if `r n = O(n ^ p)`, then `log (r n) ≤ ε n` for all
   large `n`, for every `ε > 0`.
 * `Real.eventually_exists_add_le_mul_and_forall_ofReal_add_lt_mul`: for `1 < κ c` and
@@ -433,6 +435,15 @@ theorem natCeil_log_inv_one_sub_add_one_le {γ : ℝ} (hγ₀ : 0 ≤ γ) (hγ :
   rw [log_div (exp_pos 1).ne' hu.ne', log_exp]
   rw [log_inv] at h hy ⊢
   linarith
+
+/-- For `c, n, δ > 0` with `c n ≤ x`, `c exp (-log (x / δ)) ≤ δ / n`: if each of `n` bad events
+has probability at most `c exp (-L)` at the confidence level `L = log (x / δ)`, their union has
+probability at most `δ`. -/
+theorem mul_exp_neg_log_div_le {c x n δ : ℝ} (hc : 0 < c) (hn : 0 < n) (hδ : 0 < δ)
+    (h : c * n ≤ x) : c * exp (-log (x / δ)) ≤ δ / n := by
+  have hx : 0 < x := (mul_pos hc hn).trans_le h
+  rw [exp_neg, exp_log (div_pos hx hδ), inv_div, ← mul_div_assoc, div_le_div_iff₀ hx hn]
+  nlinarith
 
 /-- If `r n = O(n ^ p)`, then `log (r n) ≤ ε n` for all large `n`, for every `ε > 0`. -/
 theorem eventually_log_le_mul_of_isBigO {r : ℕ → ℝ} {p : ℝ}

@@ -325,7 +325,6 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le [Fintype 𝓢] 
   have h_bad (i : Fin (m + 1) × 𝓢) :
       (streamMeasure M.P).real (bad i) ≤ δ / Fintype.card (Fin (m + 1) × 𝓢) := by
     have hS := hS i.2
-    have hpos : 0 < 4 * S * lg / δ := by positivity
     have hcard : (Fintype.card (Fin (m + 1) × 𝓢) : ℝ) = (m + 1) * S := by
       simp [hS_def, Fintype.card_prod]
     have hb₀ : 0 ≤ b i.1 := (hVb i.1 i.2).1.trans (hVb i.1 i.2).2
@@ -347,10 +346,8 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le [Fintype 𝓢] 
         (l := 0) (u := b i.1) (s := i.2) hbpos (fun a ↦ .of_forall (hVb i.1)) N L).trans ?_)
     · rw [Set.mem_ofPred_eq, abs_sub_comm, sub_zero]
       exact hω.le
-    · rw [hcard, Real.exp_neg, hL_def, Real.exp_log hpos, inv_div]
-      calc 2 * (δ / (4 * S * lg)) = δ / (2 * S * lg) := by field_simp; ring
-        _ ≤ δ / ((m + 1) * S) :=
-          div_le_div_of_nonneg_left hδ.le (by positivity) (by nlinarith)
+    · rw [hcard, hL_def]
+      exact Real.mul_exp_neg_log_div_le two_pos (by positivity) hδ (by nlinarith)
   -- outside the bad events, the deterministic part applies
   refine (one_sub_le_measureReal_compl_iUnion hδ.le h_bad).trans
     (measureReal_mono fun ω hω ↦ ?_)

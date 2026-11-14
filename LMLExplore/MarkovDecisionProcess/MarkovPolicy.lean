@@ -129,8 +129,8 @@ lemma stateKernel_apply (s : 𝓢) : M.stateKernel π s = M.P ∘ₘ (Measure.di
 @[simp]
 lemma stateKernel_deterministic_apply {d : 𝓢 → 𝓐} (hd : Measurable d) (s : 𝓢) :
     M.stateKernel (Kernel.deterministic d hd) s = M.P (s, d s) := by
-  rw [stateKernel_def, Kernel.comp_apply, Kernel.prod_apply, Kernel.id_apply,
-    Kernel.deterministic_apply, Measure.dirac_prod_dirac, Measure.dirac_bind M.P.measurable]
+  rw [stateKernel_apply, Measure.compProd_deterministic, Measure.map_dirac' (by fun_prop),
+    Measure.dirac_bind M.P.measurable]
 
 /-- Composing a measure `ν` on state-action pairs with the state-action kernel of `π` draws a
 next state from `M.P ∘ₘ ν`, then an action from `π`. -/

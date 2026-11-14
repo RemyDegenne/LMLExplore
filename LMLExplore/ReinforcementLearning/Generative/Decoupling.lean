@@ -8,6 +8,7 @@ module
 public import LMLExplore.MarkovDecisionProcess.Absorbing.Basic
 public import LMLExplore.MarkovDecisionProcess.Absorbing.StateAction
 public import LMLExplore.ReinforcementLearning.Generative.Basic
+import LMLExplore.Analysis.SpecialFunctions.Log.Basic
 import LMLExplore.Probability.Moments.Variance
 import LMLExplore.SequentialLearning.SumRewards
 import LMLExplore.Topology.UnitInterval
@@ -215,20 +216,6 @@ theorem measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_saA
 
 end Decoupling
 
-/-- The confidence count of [AKY20, Lemma 9]: for `θ ^ 2 (K + 1) ≤ 3`, the probability
-`2 exp (-L)` of each bad event of the Bernstein inequality at the level
-`L = log (12 S A / (θ ^ 2 δ))` is at most `δ / 2` divided by the number `S A (K + 1)` of pairs and
-points of the net. -/
-private lemma two_mul_exp_neg_log_le {S A K θ δ : ℝ} (hS : 0 < S) (hA : 0 < A) (hK : 0 ≤ K)
-    (hθ : 0 < θ) (hδ : 0 < δ) (hθK : θ ^ 2 * (K + 1) ≤ 3) :
-    2 * Real.exp (-log (12 * S * A / (θ ^ 2 * δ))) ≤ δ / 2 / (S * (A * (K + 1))) := by
-  rw [Real.exp_neg, Real.exp_log (by positivity), inv_div, div_div, le_div_iff₀ (by positivity)]
-  calc 2 * (θ ^ 2 * δ / (12 * S * A)) * (2 * (S * (A * (K + 1)))) = θ ^ 2 * (K + 1) * δ / 3 := by
-        field_simp
-        ring
-    _ ≤ 3 * δ / 3 := by gcongr
-    _ = δ := by ring
-
 /-- The numerical step of [AKY20, Lemma 9]: with `r = √(2 L / N)` and `Λ ≤ r`, the error terms
 `(2 + r) 2 γ C Λ + 2 C L / (3 (1 - γ) N)` of the approximation by the net and of Bernstein's
 inequality are at most `4 γ C r + 5 C L / ((1 - γ) N)`. -/
@@ -361,7 +348,12 @@ private theorem le_streamMeasure_forall_abs_integral_sub_le_of_absorbing {M : MD
     refine (measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_absorbing_le M N G
       (neg_lt_self hB) i.1 _ (fun ω ↦ hWb ω i.1 i.2.2) i.2.1 L).trans ?_
     simp only [Fintype.card_prod, Fintype.card_fin, Nat.cast_mul, Nat.cast_add, Nat.cast_one]
-    exact two_mul_exp_neg_log_le (by positivity) (by positivity) (Nat.cast_nonneg K) hθ₀ hδ hK₂
+    rw [div_div, show L = log (12 * S * A / θ ^ 2 / δ) by rw [div_div]]
+    refine Real.mul_exp_neg_log_div_le two_pos (by positivity) hδ
+      ((le_div_iff₀ (by positivity)).2 ?_)
+    calc 2 * (2 * (S * (A * (K + 1)))) * θ ^ 2 = 4 * S * A * (θ ^ 2 * (K + 1)) := by ring
+      _ ≤ 4 * S * A * 3 := by gcongr
+      _ = 12 * S * A := by ring
   have h_good : 1 - δ / 2 ≤ μ.real (⋃ i, bad i)ᶜ :=
     one_sub_le_measureReal_compl_iUnion (by positivity) h_bad
   -- the crude event is measurable, and both events hold with probability at least `1 - δ`

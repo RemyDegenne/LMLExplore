@@ -82,19 +82,6 @@ namespace Learning.MDP
 variable {𝓢 𝓐 𝓡 : Type*} {m𝓢 : MeasurableSpace 𝓢} {m𝓐 : MeasurableSpace 𝓐}
   {m𝓡 : MeasurableSpace 𝓡} [MeasurableSingletonClass 𝓢] [MeasurableSingletonClass 𝓐]
 
-/-- The confidence count of [LWCGC24, (92)]: for `m ≤ 2 ℓ`, the probability `2 exp (-L)` of each
-bad event of Bernstein's inequality at the level `L = log (4 S A K ℓ / δ)` is at most `δ` divided
-by the number `S A K m` of pairs, points of the grid and levels. -/
-private lemma two_mul_exp_neg_log_le {S A K ℓ m δ : ℝ} (hS : 0 < S) (hA : 0 < A) (hK : 0 < K)
-    (hℓ : 0 < ℓ) (hm : 0 < m) (hδ : 0 < δ) (hmℓ : m ≤ 2 * ℓ) :
-    2 * exp (-log (4 * S * A * K * ℓ / δ)) ≤ δ / (S * A * (K * m)) := by
-  rw [Real.exp_neg, Real.exp_log (by positivity), inv_div, le_div_iff₀ (by positivity)]
-  calc 2 * (δ / (4 * S * A * K * ℓ)) * (S * A * (K * m)) = δ * m / (2 * ℓ) := by
-        field_simp
-        ring
-    _ ≤ δ * (2 * ℓ) / (2 * ℓ) := by gcongr
-    _ = δ := by field_simp
-
 section Generative
 
 variable [Fintype 𝓢] [Fintype 𝓐] [Nonempty 𝓢] [Nonempty 𝓐]
@@ -209,8 +196,10 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le_of_separated {M
       (fun M'' ↦ V (M''.greedy γ (M''.optValue γ)) i.2.2) (hbpos i.2.2) i.1 _
       (fun ω s' ↦ hVb _ _ _) L).trans ?_
     simp only [Fintype.card_prod, Fintype.card_fin, Nat.cast_mul, Nat.cast_add, Nat.cast_one]
-    exact two_mul_exp_neg_log_le (by positivity) (by positivity) (by positivity) (by linarith)
-      (by positivity) hδ hm'
+    refine Real.mul_exp_neg_log_div_le two_pos (by positivity) hδ ?_
+    calc 2 * (S * A * ((K + 1) * ((m : ℝ) + 1))) = 2 * S * A * (K + 1) * ((m : ℝ) + 1) := by ring
+      _ ≤ 2 * S * A * (K + 1) * (2 * lg) := by gcongr
+      _ = 4 * S * A * (K + 1) * lg := by ring
   -- outside the bad events, the deterministic part applies to `π̂`
   refine (one_sub_le_measureReal_compl_iUnion hδ.le h_bad).trans
     (measureReal_mono fun ω hω ↦ ?_)
