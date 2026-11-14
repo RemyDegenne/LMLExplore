@@ -235,7 +235,7 @@ theorem setLIntegral_limsup_le (hM : IsENNSupermartingale M ℱ S) (hP : P ∈ S
   have hs' : MeasurableSet[(isStoppingTime_const ℱ n).measurableSpace] s := by
     rwa [IsStoppingTime.measurableSpace_const]
   have := hM.setLIntegral_stoppedValueLimsup_le hP h0 (isStoppingTime_const ℱ n)
-    (τ := fun _ ↦ ⊤) (fun _ ↦ by simp) (fun _ ↦ le_top) hs'
+    (isStoppingTime_top ℱ) (fun _ ↦ le_top) hs'
   rwa [stoppedValueLimsup_const, stoppedValueLimsup_top] at this
 
 /-- The almost sure limit has expectation at most `∫⁻ M 0`. -/

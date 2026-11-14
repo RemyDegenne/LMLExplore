@@ -28,6 +28,7 @@ limit of the stopped process wherever `M` converges, which is the case almost su
 * `ProbabilityTheory.limsup_stoppedProcess`: `stoppedValueLimsup M τ` is the `limsup` of the
   stopped process.
 * `ProbabilityTheory.measurable_stoppedValueLimsup`: measurability at a measurable time.
+* `MeasureTheory.isStoppingTime_top`: the constant time `⊤` is a stopping time.
 
 ## References
 
@@ -41,6 +42,15 @@ public section
 
 open MeasureTheory Filter
 open scoped ENNReal Topology
+
+namespace MeasureTheory
+
+/-- The constant time `⊤` is a stopping time. -/
+theorem isStoppingTime_top {Ω ι : Type*} {m : MeasurableSpace Ω} [Preorder ι]
+    (f : Filtration ι m) : IsStoppingTime f fun _ : Ω ↦ (⊤ : WithTop ι) :=
+  fun _ ↦ by simp
+
+end MeasureTheory
 
 namespace ProbabilityTheory
 
