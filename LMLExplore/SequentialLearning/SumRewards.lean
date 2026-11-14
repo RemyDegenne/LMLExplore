@@ -57,7 +57,7 @@ this way.
   stream, have the law `streamMeasure ν` of the stream model.
 * `hasLaw_arm_streamMeasure`: in the stream model, the array of the reward sequences of the arms
   has law `⨂ a, ⨂ i, ν a`, and `iIndepFun_arm_streamMeasure`: these sequences are independent;
-  `streamMeasure_forall_row_mem` is the product formula for events about them.
+  `streamMeasure_forall_arm_mem` is the product formula for events about them.
 * `hasLaw_arm_fin_streamMeasure`: in the stream model, the first `n` rewards of an arm `a` are `n`
   independent samples of `ν a`, and `hasLaw_pi_arm_fin_streamMeasure`: for finitely many arms,
   the first `n a` rewards of the arms `a` are independent across the arms.
@@ -334,10 +334,10 @@ theorem iIndepFun_arm_streamMeasure {𝓡 : Type*} [MeasurableSpace 𝓡] (ν : 
   rw [← (hasLaw_eval_infinitePi _ a).comp h_arms |>.map_eq, Function.comp_def]
 
 omit [DecidableEq α] [Countable α] [MeasurableSingletonClass α] in
-/-- **Independence of the rows of the reward stream.** For finitely many arms, events about the
+/-- **Independence of the arms of the reward stream.** For finitely many arms, events about the
 reward sequences `(ω i a)_i` of different arms `a` in LML's reward stream model are independent,
 and the reward sequence of `a` is an i.i.d. sequence of law `ν a`. -/
-theorem streamMeasure_forall_row_mem [Fintype α] {𝓡 : Type*} [MeasurableSpace 𝓡] (ν : Kernel α 𝓡)
+theorem streamMeasure_forall_arm_mem [Fintype α] {𝓡 : Type*} [MeasurableSpace 𝓡] (ν : Kernel α 𝓡)
     [IsMarkovKernel ν] {E : α → Set (ℕ → 𝓡)} (hE : ∀ a, MeasurableSet (E a)) :
     streamMeasure ν {ω | ∀ a, (fun i ↦ ω i a) ∈ E a} =
       ∏ a, (Measure.infinitePi fun _ : ℕ ↦ ν a) (E a) := by

@@ -25,7 +25,7 @@ law of `μ̂_T` is not a product, unlike the laws of `LMLExplore.hasLDP_pi_comp_
 
 The proof goes through LML's reward stream model `streamMeasure ν`, the stack of rewards of
 [LS, Section 4.6], whose rows are independent i.i.d. sequences
-(`LMLExplore.streamMeasure_forall_row_mem`): the empirical mean of arm `a`
+(`LMLExplore.streamMeasure_forall_arm_mem`): the empirical mean of arm `a`
 after `T` rounds is the mean of the first `N_{T,a}` entries of its row
 (`hasLaw_rewardByCount_streamMeasure`).
 
@@ -280,7 +280,7 @@ theorem exists_eventually_le_streamMeasure_forall_mean_mem
     ext z
     simp only [E, Set.mem_ofPred_eq, Set.mem_preimage,
       Fin.sum_univ_eq_sum_range (fun i ↦ z i)]
-  rw [streamMeasure_forall_row_mem ν hE, Finset.prod_congr rfl fun a _ ↦ hE_eq a,
+  rw [streamMeasure_forall_arm_mem ν hE, Finset.prod_congr rfl fun a _ ↦ hE_eq a,
     Finset.prod_mul_distrib, mul_comm]
   gcongr
   refine hT.trans_eq ?_
