@@ -189,6 +189,11 @@ theorem lintegral_le_one (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) (n 
     ∫⁻ ω, M n ω ∂P ≤ 1 :=
   (hM.lintegral_le hP n.zero_le).trans (hM.lintegral_zero_le P hP)
 
+/-- The initial expectation of a test supermartingale is finite. -/
+theorem lintegral_zero_ne_top (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) :
+    ∫⁻ ω, M 0 ω ∂P ≠ ∞ :=
+  ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
+
 /-- Every value of a test supermartingale for a null of probability measures is an
 e-variable. -/
 theorem isEVar (hS : ∀ P ∈ S, IsProbabilityMeasure P) (hM : IsTestSupermartingale M ℱ S)
@@ -198,15 +203,13 @@ theorem isEVar (hS : ∀ P ∈ S, IsProbabilityMeasure P) (hM : IsTestSupermarti
 /-- A test supermartingale is almost surely finite at every time. -/
 theorem ae_lt_top (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) :
     ∀ᵐ ω ∂P, ∀ n, M n ω < ∞ :=
-  hM.toIsENNSupermartingale.ae_lt_top hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
+  hM.toIsENNSupermartingale.ae_lt_top hP (hM.lintegral_zero_ne_top hP)
 
 /-- The real values of a test supermartingale form a real supermartingale under every finite
 member of the null. -/
 theorem supermartingale_toReal (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S)
     [IsFiniteMeasure P] : Supermartingale (fun n ω ↦ (M n ω).toReal) ℱ P :=
-  hM.toIsENNSupermartingale.supermartingale_toReal hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
+  hM.toIsENNSupermartingale.supermartingale_toReal hP (hM.lintegral_zero_ne_top hP)
 
 end IsTestSupermartingale
 
@@ -440,7 +443,6 @@ successive ratios `M (k + 1) / M k`, with `0 / 0 = 0`, which are conditional e-v
 theorem IsTestSupermartingale.ae_eq_mul_prod_div (hM : IsTestSupermartingale M ℱ S)
     (hP : P ∈ S) :
     ∀ᵐ ω ∂P, ∀ n, M n ω = M 0 ω * ∏ k ∈ range n, M (k + 1) ω / M k ω :=
-  hM.toIsENNSupermartingale.ae_eq_mul_prod_div hP
-    ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
+  hM.toIsENNSupermartingale.ae_eq_mul_prod_div hP (hM.lintegral_zero_ne_top hP)
 
 end ProbabilityTheory

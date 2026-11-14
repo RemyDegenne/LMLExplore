@@ -6,31 +6,28 @@ Authors: LMLExplore contributors
 module
 
 public import LMLExplore.EValues.TestSupermartingale
+public import LMLExplore.Probability.Process.StoppedValueLimsup
 public import Mathlib.Probability.Martingale.Convergence
-public import TauCeti.Probability.Process.StoppedValue
 
 /-!
 # Convergence and optional stopping of supermartingales in `ℝ≥0∞`
 
-An `ℝ≥0∞`-valued supermartingale `M` with finite initial expectation converges almost surely, and
-its limit `limsup M` is almost surely finite with `∫⁻ limsup M ≤ ∫⁻ M 0` [RW, Fact 7.5]. This is
-what gives a meaning to the value of `M` at a stopping time that may be infinite:
+An `ℝ≥0∞`-valued supermartingale `M` with finite initial expectation under a finite measure
+converges almost surely, and its limit `limsup M` is almost surely finite with
+`∫⁻ limsup M ≤ ∫⁻ M 0` [RW, Fact 7.5]. This is what gives a meaning to the value of `M` at a
+stopping time that may be infinite:
 `ProbabilityTheory.stoppedValueLimsup M τ` is `M (τ ω) ω` where `τ ω` is finite and
-`limsup (M · ω)` where `τ ω = ⊤` [RRLK; RLKR23, (1.2)].
+`limsup (M · ω)` where `τ ω = ⊤` [RRLK; RLKR23, (1.2)]
+(`LMLExplore/Probability/Process/StoppedValueLimsup.lean`).
 
-The optional stopping theorem then holds at arbitrary stopping times, with no boundedness or
-integrability condition beyond that of the initial value [RW, Fact 7.5; ShSVV11, Theorem 1]: for
+The optional stopping theorem then holds at arbitrary stopping times, with no condition beyond a
+finite measure and finite initial expectation [RW, Fact 7.5; ShSVV11, Theorem 1]: for
 stopping times `σ ≤ τ` and every `s` measurable for the σ-algebra of `σ`,
 `∫⁻ ω in s, stoppedValueLimsup M τ ω ∂P ≤ ∫⁻ ω in s, stoppedValueLimsup M σ ω ∂P`. In particular
 the value of a test supermartingale at any stopping time is an e-variable, which is what makes
 test supermartingales valid under optional stopping and the starting point of e-processes.
 Mathlib's `MeasureTheory.Submartingale.expected_stoppedValue_mono` is the case of bounded stopping
 times for integrable real processes.
-
-## Main definitions
-
-* `ProbabilityTheory.stoppedValueLimsup M τ`: the value of `M` at a time `τ : Ω → WithTop ι`,
-  with `limsup` at infinity.
 
 ## Main statements
 
@@ -72,92 +69,8 @@ open scoped ENNReal Topology
 
 namespace ProbabilityTheory
 
-variable {Ω : Type*} {mΩ : MeasurableSpace Ω}
-
-/-! ### The value at a possibly infinite time -/
-
-section StoppedValueLimsup
-
-variable {ι : Type*} [Nonempty ι] [LinearOrder ι] {M : ι → Ω → ℝ≥0∞} {τ : Ω → WithTop ι}
-  {ω : Ω}
-
-/-- The value of a process `M : ι → Ω → ℝ≥0∞` at a time `τ : Ω → WithTop ι`: `M (τ ω) ω` where
-`τ ω` is finite and `limsup (M · ω)` where `τ ω = ⊤` [RRLK; RLKR23, (1.2)]. Unlike Mathlib's
-`MeasureTheory.stoppedValue`, whose value at `⊤` is arbitrary, it is the limit of the stopped
-process wherever `M` converges (`ProbabilityTheory.tendsto_stoppedProcess_stoppedValueLimsup`). -/
-noncomputable def stoppedValueLimsup (M : ι → Ω → ℝ≥0∞) (τ : Ω → WithTop ι) (ω : Ω) : ℝ≥0∞ :=
-  if τ ω = ⊤ then limsup (fun n ↦ M n ω) atTop else stoppedValue M τ ω
-
-theorem stoppedValueLimsup_of_eq_top (h : τ ω = ⊤) :
-    stoppedValueLimsup M τ ω = limsup (fun n ↦ M n ω) atTop := by
-  simp [stoppedValueLimsup, h]
-
-theorem stoppedValueLimsup_of_ne_top (h : τ ω ≠ ⊤) :
-    stoppedValueLimsup M τ ω = stoppedValue M τ ω := by
-  simp [stoppedValueLimsup, h]
-
-theorem stoppedValueLimsup_of_eq_coe {i : ι} (h : τ ω = i) :
-    stoppedValueLimsup M τ ω = M i ω := by
-  rw [stoppedValueLimsup_of_ne_top (h ▸ WithTop.coe_ne_top), stoppedValue_of_eq h]
-
-/-- `stoppedValueLimsup M τ ω` depends on `τ` only through `τ ω`. -/
-theorem stoppedValueLimsup_congr {σ : Ω → WithTop ι} (h : σ ω = τ ω) :
-    stoppedValueLimsup M σ ω = stoppedValueLimsup M τ ω := by
-  simp [stoppedValueLimsup, stoppedValue, h]
-
-/-- At a time with finite values, `stoppedValueLimsup` is the value of the process. -/
-@[simp]
-theorem stoppedValueLimsup_coe (M : ι → Ω → ℝ≥0∞) (τ : Ω → ι) :
-    stoppedValueLimsup M (fun ω ↦ (τ ω : WithTop ι)) = fun ω ↦ M (τ ω) ω :=
-  funext fun _ ↦ stoppedValueLimsup_of_eq_coe rfl
-
-/-- At a constant finite time, `stoppedValueLimsup` is the value of the process. -/
-theorem stoppedValueLimsup_const (M : ι → Ω → ℝ≥0∞) (i : ι) :
-    stoppedValueLimsup M (fun _ ↦ (i : WithTop ι)) = M i :=
-  funext fun _ ↦ stoppedValueLimsup_of_eq_coe rfl
-
-/-- At the time `⊤`, `stoppedValueLimsup` is the `limsup` of the process. -/
-@[simp]
-theorem stoppedValueLimsup_top (M : ι → Ω → ℝ≥0∞) :
-    stoppedValueLimsup M (fun _ ↦ ⊤) = fun ω ↦ limsup (fun n ↦ M n ω) atTop :=
-  funext fun _ ↦ stoppedValueLimsup_of_eq_top rfl
-
-/-- The stopped process at a time after `τ ω` is `stoppedValueLimsup M τ ω`. -/
-theorem stoppedProcess_eq_stoppedValueLimsup {i : ι} (h : τ ω ≤ i) :
-    stoppedProcess M τ i ω = stoppedValueLimsup M τ ω := by
-  rw [stoppedProcess_eq_of_ge h, stoppedValueLimsup_of_ne_top (ne_top_of_le_ne_top
-    WithTop.coe_ne_top h), stoppedValue]
-
-/-- The stopped process converges to `stoppedValueLimsup M τ` wherever `τ` is finite, and wherever
-`M` converges. -/
-theorem tendsto_stoppedProcess_stoppedValueLimsup
-    (hM : τ ω = ⊤ → Tendsto (fun n ↦ M n ω) atTop (𝓝 (limsup (fun n ↦ M n ω) atTop))) :
-    Tendsto (fun n ↦ stoppedProcess M τ n ω) atTop (𝓝 (stoppedValueLimsup M τ ω)) := by
-  cases h : τ ω with
-  | top =>
-    simp_rw [stoppedValueLimsup_of_eq_top h, stoppedProcess_eq_of_le (h ▸ le_top)]
-    exact hM h
-  | coe k =>
-    exact tendsto_atTop_of_eventually_const (i₀ := k) fun n hn ↦
-      stoppedProcess_eq_stoppedValueLimsup (h ▸ WithTop.coe_le_coe.2 hn)
-
-/-- `stoppedValueLimsup M τ ω` is the `limsup` of the stopped process. -/
-theorem limsup_stoppedProcess (M : ι → Ω → ℝ≥0∞) (τ : Ω → WithTop ι) (ω : Ω) :
-    limsup (fun n ↦ stoppedProcess M τ n ω) atTop = stoppedValueLimsup M τ ω := by
-  cases h : τ ω with
-  | top => simp_rw [stoppedValueLimsup_of_eq_top h, stoppedProcess_eq_of_le (h ▸ le_top)]
-  | coe k => exact (tendsto_stoppedProcess_stoppedValueLimsup fun h' ↦ by simp [h] at h').limsup_eq
-
-end StoppedValueLimsup
-
-/-- The value of a measurable process at a measurable time is measurable. -/
-theorem measurable_stoppedValueLimsup {M : ℕ → Ω → ℝ≥0∞} {τ : Ω → WithTop ℕ}
-    (hM : ∀ n, Measurable (M n)) (hτ : Measurable τ) : Measurable (stoppedValueLimsup M τ) :=
-  Measurable.ite (hτ (measurableSet_singleton ⊤)) (Measurable.limsup hM)
-    (measurable_stoppedValue_of_countable hM hτ)
-
-variable {ℱ : Filtration ℕ mΩ} {S : Set (Measure Ω)} {P : Measure Ω} {M : ℕ → Ω → ℝ≥0∞}
-  {σ τ : Ω → WithTop ℕ}
+variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {ℱ : Filtration ℕ mΩ} {S : Set (Measure Ω)}
+  {P : Measure Ω} {M : ℕ → Ω → ℝ≥0∞} {σ τ : Ω → WithTop ℕ}
 
 /-! ### Almost sure convergence -/
 
@@ -196,7 +109,7 @@ private lemma setLIntegral_stoppedProcess_succ_le (hM : IsENNSupermartingale M �
     ← lintegral_inter_add_sdiff (fun ω ↦ MeasureTheory.stoppedProcess M τ n ω) t (ℱ.le n _ hC)]
   refine add_le_add ?_ (setLIntegral_congr_fun (ℱ.le n _ (ht.diff hC)) fun ω hω ↦ ?_).le
   · rw [setLIntegral_congr_fun htC fun ω hω ↦ stoppedProcess_eq_of_le (i := n + 1)
-        (by rw [← Order.succ_eq_add_one, ← WithTop.succ_coe]; exact Order.succ_le_of_lt hω.2),
+        (ENat.natCast_add_one_le_iff.2 hω.2),
       setLIntegral_congr_fun htC fun ω hω ↦ stoppedProcess_eq_of_le (i := n) hω.2.le]
     exact hM.setLIntegral_succ_le P hP n _ (ht.inter hC)
   · have hτn : τ ω ≤ n := not_lt.1 hω.2
@@ -231,8 +144,7 @@ theorem setLIntegral_stoppedProcess_le (hM : IsENNSupermartingale M ℱ S) (hP :
               rw [stoppedProcess_eq_of_ge (i := n) hω.2, stoppedProcess_eq_of_ge (i := n + 1)
                 (hω.2.trans (WithTop.coe_le_coe.2 n.le_succ))]
     · have hσn : ¬σ ω ≤ WithTop.some n := hω.2
-      have hσn' : WithTop.some (n + 1) ≤ σ ω := by
-        rw [← Order.succ_eq_add_one, ← WithTop.succ_coe]; exact Order.succ_le_of_lt (not_le.1 hσn)
+      have hσn' : WithTop.some (n + 1) ≤ σ ω := ENat.natCast_add_one_le_iff.2 (not_le.1 hσn)
       rw [stoppedProcess_eq_of_le (i := n + 1) (hσn'.trans (hστ ω)),
         stoppedProcess_eq_of_le (i := n + 1) hσn']
 
@@ -339,10 +251,6 @@ namespace IsTestSupermartingale
 
 variable (hM : IsTestSupermartingale M ℱ S)
 include hM
-
-/-- The initial expectation of a test supermartingale is finite. -/
-theorem lintegral_zero_ne_top (hP : P ∈ S) : ∫⁻ ω, M 0 ω ∂P ≠ ∞ :=
-  ((hM.lintegral_zero_le P hP).trans_lt ENNReal.one_lt_top).ne
 
 /-- A test supermartingale converges almost surely, under every finite member of the null. -/
 theorem ae_tendsto_limsup (hP : P ∈ S) [IsFiniteMeasure P] :
