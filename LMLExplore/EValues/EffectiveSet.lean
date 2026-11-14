@@ -42,8 +42,8 @@ measures `S`.
   (`ProbabilityTheory.effectiveSet_effectiveSet_inter`) the same effective null.
 * `ProbabilityTheory.absolutelyContinuous_of_mem_effectiveSet`: if every member of `S` is
   absolutely continuous with respect to `μ`, so is every member of the effective null.
-* `ProbabilityTheory.exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet`: for a null `S` of
-  finite measures, a measure outside the effective null of `S` is detected by a bounded e-variable.
+* `ProbabilityTheory.exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet`: a measure outside the
+  effective null of `S` is detected by a bounded e-variable.
 * `ProbabilityTheory.exists_powered_test_iff`: for a null `S` of probability measures,
   a measure `Q` admits, for some `α ∈ (0, 1)`, a level-`α` test for `S` with power larger than `α`
   under `Q` exactly when `Q` is not in the effective null of `S` [RW, Theorem 6.10].
@@ -182,11 +182,10 @@ theorem effectiveSet_effectiveSet_inter (hS : ∀ P ∈ S, IsProbabilityMeasure 
   ext μ
   simp only [mem_effectiveSet_iff, isEVar_effectiveSet_inter_iff hS]
 
-/-- A measure `Q` outside the effective null of a null `S` of finite measures is detected by a
+/-- A measure `Q` outside the effective null of a null `S` is detected by a
 bounded e-variable: some e-variable for `S` bounded by an integer `N ≥ 2` has expectation larger
 than `1` under `Q`. -/
-theorem exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet
-    (hS : ∀ P ∈ S, IsFiniteMeasure P) (hQ : Q ∉ effectiveSet S) :
+theorem exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet (hQ : Q ∉ effectiveSet S) :
     ∃ Y : Ω → ℝ≥0∞, ∃ N : ℕ, 2 ≤ N ∧ IsEVar Y S ∧ (∀ ω, Y ω ≤ N) ∧ 1 < ∫⁻ ω, Y ω ∂Q := by
   obtain ⟨X, hX, hXQ⟩ : ∃ X, IsEVar X S ∧ 1 < ∫⁻ ω, X ω ∂Q := by
     simpa [mem_effectiveSet_iff] using hQ
@@ -200,8 +199,20 @@ theorem exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet
     simpa using (tendsto_const_nhds (x := X ω)).min ENNReal.tendsto_nat_nhds_top
   obtain ⟨N, hNQ, hN2⟩ := ((h_tendsto.eventually (lt_mem_nhds hXQ)).and
     (eventually_ge_atTop 2)).exists
-  exact ⟨fun ω ↦ min (X ω) N, N, hN2, hX.mono hS (by fun_prop) fun ω ↦ min_le_left _ _,
+  -- Since `N ≥ 1`, the truncation `min X N - 1` has the same negative part as `X - 1`, and a
+  -- smaller positive part, so it is an e-variable whatever the members of `S`.
+  refine ⟨fun ω ↦ min (X ω) N, N, hN2, ⟨by fun_prop, fun P hP ↦ ?_, fun P hP ↦ ?_⟩,
     fun ω ↦ min_le_right _ _, hNQ⟩
+  · refine eintegral_ne_bot_iff_lintegral_ne_top.mpr <| ne_top_of_le_ne_top
+      (eintegral_ne_bot_iff_lintegral_ne_top.mp (hX.eintegral_ne_bot P hP))
+      (lintegral_mono fun ω ↦ ?_)
+    rcases le_total (X ω) N with h | h
+    · rw [min_eq_left h]
+    · rw [min_eq_right h, EReal.toENNReal_of_nonpos (EReal.neg_le_zero.mpr <|
+        (EReal.sub_nonneg (by simp) (by simp)).mpr (by exact_mod_cast (by omega : 1 ≤ N)))]
+      exact bot_le
+  · exact (eintegral_mono fun ω ↦ EReal.sub_le_sub (by exact_mod_cast min_le_left _ _) le_rfl).trans
+      (hX.eintegral_nonpos P hP)
 
 /-- A measure `Q` is outside the effective null of a null `S` of probability measures exactly
 when, for some level `α ∈ (0, 1)`, some level-`α` test `φ` for `S` (a measurable function with
@@ -227,8 +238,7 @@ theorem exists_powered_test_iff (hS : ∀ P ∈ S, IsProbabilityMeasure P) (Q : 
   · -- A bounded e-variable with expectation larger than `1` under `Q`, divided by its bound `N`,
     -- is a level-`N⁻¹` test with power larger than `N⁻¹` under `Q`.
     intro hQ
-    obtain ⟨Y, N, hN2, hY, hYN, hYQ⟩ := exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet
-      (fun P hP ↦ have := hS P hP; inferInstance) hQ
+    obtain ⟨Y, N, hN2, hY, hYN, hYQ⟩ := exists_isEVar_le_lt_lintegral_of_notMem_effectiveSet hQ
     have hYm := hY.measurable
     have hN0 : (N : ℝ≥0∞) ≠ 0 := by exact_mod_cast (by omega : N ≠ 0)
     have hNtop : (N : ℝ≥0∞) ≠ ∞ := ENNReal.natCast_ne_top N
