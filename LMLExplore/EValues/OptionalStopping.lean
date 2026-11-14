@@ -97,6 +97,13 @@ theorem ae_tendsto_limsup (hM : IsENNSupermartingale M ℱ S) (hP : P ∈ S) [Is
 
 /-! ### Optional stopping -/
 
+/-- In `WithTop ℕ`, a value strictly above `n` is at least `n + 1`. -/
+private lemma coe_add_one_le_of_coe_lt {n : ℕ} {x : WithTop ℕ} (h : (n : WithTop ℕ) < x) :
+    ((n + 1 : ℕ) : WithTop ℕ) ≤ x := by
+  cases x with
+  | top => exact le_top
+  | coe x => exact WithTop.coe_le_coe.2 (Nat.succ_le_of_lt (WithTop.coe_lt_coe.1 h))
+
 /-- One step of the stopped process: its set integrals over `ℱ n`-measurable sets do not increase
 from time `n` to time `n + 1`. -/
 private lemma setLIntegral_stoppedProcess_succ_le (hM : IsENNSupermartingale M ℱ S) (hP : P ∈ S)
@@ -109,7 +116,7 @@ private lemma setLIntegral_stoppedProcess_succ_le (hM : IsENNSupermartingale M �
     ← lintegral_inter_add_sdiff (fun ω ↦ MeasureTheory.stoppedProcess M τ n ω) t (ℱ.le n _ hC)]
   refine add_le_add ?_ (setLIntegral_congr_fun (ℱ.le n _ (ht.diff hC)) fun ω hω ↦ ?_).le
   · rw [setLIntegral_congr_fun htC fun ω hω ↦ stoppedProcess_eq_of_le (i := n + 1)
-        (ENat.natCast_add_one_le_iff.2 hω.2),
+        (coe_add_one_le_of_coe_lt hω.2),
       setLIntegral_congr_fun htC fun ω hω ↦ stoppedProcess_eq_of_le (i := n) hω.2.le]
     exact hM.setLIntegral_succ_le P hP n _ (ht.inter hC)
   · have hτn : τ ω ≤ n := not_lt.1 hω.2
@@ -144,7 +151,7 @@ theorem setLIntegral_stoppedProcess_le (hM : IsENNSupermartingale M ℱ S) (hP :
               rw [stoppedProcess_eq_of_ge (i := n) hω.2, stoppedProcess_eq_of_ge (i := n + 1)
                 (hω.2.trans (WithTop.coe_le_coe.2 n.le_succ))]
     · have hσn : ¬σ ω ≤ WithTop.some n := hω.2
-      have hσn' : WithTop.some (n + 1) ≤ σ ω := ENat.natCast_add_one_le_iff.2 (not_le.1 hσn)
+      have hσn' : WithTop.some (n + 1) ≤ σ ω := coe_add_one_le_of_coe_lt (not_le.1 hσn)
       rw [stoppedProcess_eq_of_le (i := n + 1) (hσn'.trans (hστ ω)),
         stoppedProcess_eq_of_le (i := n + 1) hσn']
 
