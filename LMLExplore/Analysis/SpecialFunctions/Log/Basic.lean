@@ -50,6 +50,8 @@ import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 * `Real.add_one_mul_log_sub_le_one`: `(m + 1) log (m + 1) - m log m - log (m + 1 / 2) ≤ 1` for
   `m : ℕ`.
 * `Real.log_div_le_log_one_div_add_log`: `log (x / δ) ≤ log (1 / δ) + log x` for `δ ∈ (0, 1]`.
+* `Real.natCeil_log_inv_one_sub_add_one_le`: `⌈log (1 - γ)⁻¹⌉₊ + 1 ≤ 2 log (e / (1 - γ))` for
+  `0 ≤ γ < 1`.
 * `Real.eventually_log_le_mul_of_isBigO`: if `r n = O(n ^ p)`, then `log (r n) ≤ ε n` for all
   large `n`, for every `ε > 0`.
 * `Real.eventually_exists_add_le_mul_and_forall_ofReal_add_lt_mul`: for `1 < κ c` and
@@ -419,6 +421,18 @@ theorem log_div_le_log_one_div_add_log (x : ℝ) {δ : ℝ} (hδ : 0 < δ) (hδ1
     exact log_nonneg (one_le_one_div hδ hδ1)
   · rw [log_div hx hδ.ne', one_div, log_inv]
     linarith
+
+/-- For `0 ≤ γ < 1`, `⌈log (1 - γ)⁻¹⌉₊ + 1 ≤ 2 log (e / (1 - γ))`. The left-hand side counts the
+levels `0, …, ⌈log (1 - γ)⁻¹⌉₊` of a recursion run for `log (1 - γ)⁻¹` steps, as in the union
+bounds of model-based policy evaluation with a generative model. -/
+theorem natCeil_log_inv_one_sub_add_one_le {γ : ℝ} (hγ₀ : 0 ≤ γ) (hγ : γ < 1) :
+    (⌈log (1 - γ)⁻¹⌉₊ : ℝ) + 1 ≤ 2 * log (exp 1 / (1 - γ)) := by
+  have hu : 0 < 1 - γ := sub_pos.2 hγ
+  have hy : 0 ≤ log (1 - γ)⁻¹ := log_nonneg ((one_le_inv₀ hu).2 (by linarith))
+  have h := Nat.ceil_lt_add_one hy
+  rw [log_div (exp_pos 1).ne' hu.ne', log_exp]
+  rw [log_inv] at h hy ⊢
+  linarith
 
 /-- If `r n = O(n ^ p)`, then `log (r n) ≤ ε n` for all large `n`, for every `ε > 0`. -/
 theorem eventually_log_le_mul_of_isBigO {r : ℕ → ℝ} {p : ℝ}

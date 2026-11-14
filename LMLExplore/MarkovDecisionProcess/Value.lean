@@ -92,6 +92,15 @@ lemma abs_policyReward_le [IsMarkovKernel π] (hR : ∀ p, ∀ᵐ x ∂(M.R p), 
     |M.policyReward π s| ≤ C :=
   abs_integral_le_of_abs_le fun a ↦ abs_meanReward_le hR (s, a)
 
+/-- With rewards in `[0, C]`, the reward of a stationary policy is in `[0, C]`. -/
+lemma policyReward_mem_Icc [IsMarkovKernel π] (hR : ∀ p, ∀ᵐ x ∂(M.R p), x ∈ Set.Icc 0 C)
+    (s : 𝓢) : M.policyReward π s ∈ Set.Icc 0 C :=
+  ⟨integral_nonneg fun a ↦ by
+      rw [meanReward_def]
+      exact integral_nonneg_of_ae ((hR _).mono fun _ hx ↦ hx.1),
+    (le_abs_self _).trans
+      (abs_policyReward_le (fun p ↦ (hR p).mono fun _ hx ↦ (abs_of_nonneg hx.1).trans_le hx.2) s)⟩
+
 /-- The reward of a deterministic stationary policy `d` is the mean reward of the action `d s`. -/
 @[simp]
 lemma policyReward_deterministic {d : 𝓢 → 𝓐} (hd : Measurable d) (s : 𝓢) :

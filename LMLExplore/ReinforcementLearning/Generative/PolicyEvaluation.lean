@@ -7,6 +7,7 @@ module
 
 public import LMLExplore.ReinforcementLearning.Generative.Basic
 import LMLExplore.Algebra.Order.Ring.Abs
+import LMLExplore.Analysis.SpecialFunctions.Log.Basic
 import LMLExplore.Analysis.Convex.Integral
 import LMLExplore.Analysis.Convex.Simplex
 
@@ -47,6 +48,10 @@ by Jensen's inequality. [LWCGC24] states the lemma for deterministic policies.
 
 * `measureReal_sqrt_variance_add_le_abs_integral_sub_integral_stateKernel_empirical_le`: Bernstein's
   inequality for the empirical state kernel of a stationary policy.
+* `Learning.MDP.abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le`: the deterministic part,
+  for two MDPs with the same rewards, with the deviations in the form given by Bernstein's
+  inequality at the level `L` and `ε = 2 L / N`. It is shared with the leave-one-out analysis of
+  `ReinforcementLearning/Generative/LeaveOneOut.lean` [LWCGC24, Lemma 5].
 * `Learning.MDP.le_streamMeasure_forall_abs_value_empirical_sub_value_le`: model-based policy
   evaluation with a generative model [LWCGC24, Lemma 1].
 
@@ -168,6 +173,63 @@ theorem measureReal_sqrt_variance_add_le_abs_integral_sub_integral_stateKernel_e
   rw [Set.mem_ofPred_eq, ← h_emp]
   exact hω
 
+omit [MeasurableSingletonClass 𝓢] [MeasurableSingletonClass 𝓐] in
+/-- **The deterministic part of model-based policy evaluation** [LWCGC24, Lemmas 1 and 2]. Let
+`M` and `M'` be MDPs with the same rewards, in `[0, C]`, `0 < γ < 1`, and `π` a stationary policy,
+with state kernels `P_π` in `M` and `P'_π` in `M'`. Let `V 0 = v^π` and
+`V (l + 1) = R_γ(P_π) √Var_{P_π}(V l)` be the levels of [LWCGC24, Lemma 2], bounded by
+`b l = C / ((1 - γ) (γ √(1 - γ)) ^ l)`, and `log (1 - γ)⁻¹ ≤ m`. Let `L ≥ 0`, `N > 0` and
+`18 L ≤ (1 - γ) N`. If `P'_π` deviates from `P_π` on the levels `l ≤ m` by the bound
+`√(2 Var_{P_π}(V l) L / N) + b l L / (3 N)` of Bernstein's inequality at the level `L`, then the
+value of `π` in `M'` satisfies `|v'^π - v^π| ≤ 3 C √(2 L / (N (1 - γ) ^ 3))`.
+
+This is `ProbabilityTheory.Kernel.abs_integral_resolvent_sub_integral_resolvent_le_of_abs_sub_le`
+with `ε = 2 L / N`, for the resolvent forms `v^π = R_γ(P_π) r_π` and `v'^π = R_γ(P'_π) r_π` of the
+two values. -/
+theorem abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le {M M' : MDP 𝓢 𝓐 ℝ}
+    (hM' : M'.R = M.R) {γ : ℝ≥0} (hγ₀ : 0 < γ) (hγ : γ < 1) {C : ℝ}
+    (hR : ∀ p, ∀ᵐ x ∂(M.R p), x ∈ Set.Icc 0 C) (π : Kernel 𝓢 𝓐) [IsMarkovKernel π]
+    {V : ℕ → 𝓢 → ℝ}
+    (hV₀ : ∀ x, V 0 x = ∫ y, M.policyReward π y ∂(Kernel.resolvent γ (M.stateKernel π) x))
+    (hV : ∀ l x, V (l + 1) x =
+      ∫ y, √Var[V l; M.stateKernel π y] ∂(Kernel.resolvent γ (M.stateKernel π) x))
+    {m : ℕ} (hm : log (1 - (γ : ℝ))⁻¹ ≤ m) {N L : ℝ} (hN : 0 < N) (hL : 0 ≤ L)
+    (hNL : 18 * L ≤ (1 - γ) * N)
+    (h : ∀ l ≤ m, ∀ x,
+      |∫ y, V l y ∂(M'.stateKernel π x) - ∫ y, V l y ∂(M.stateKernel π x)| ≤
+        √(2 * Var[V l; M.stateKernel π x] * L / N) +
+          C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / (3 * N)) (s : 𝓢) :
+    |M'.value γ π s - M.value γ π s| ≤ 3 * C * √(2 * L / (N * (1 - γ) ^ 3)) := by
+  have hRabs (p : 𝓢 × 𝓐) : ∀ᵐ x ∂(M.R p), |x| ≤ C :=
+    (hR p).mono fun x hx ↦ (abs_of_nonneg hx.1).trans_le hx.2
+  have hf (y : 𝓢) := policyReward_mem_Icc (π := π) hR y
+  -- both values are resolvents of the same reward `r_π`
+  have hfe : M'.policyReward π = M.policyReward π :=
+    funext fun y ↦ by rw [policyReward_def, hM', policyReward_def]
+  rw [value_eq_integral_resolvent hγ (hM' ▸ hRabs), value_eq_integral_resolvent hγ hRabs, hfe]
+  -- Lemma 2 with `ε = 2 L / N`, for which `9 ε ≤ 1 - γ`
+  have hε9 : 9 * (2 * L / N) ≤ 1 - γ := by
+    rw [← mul_div_assoc, div_le_iff₀ hN]
+    linarith
+  refine (Kernel.abs_integral_resolvent_sub_integral_resolvent_le_of_abs_sub_le
+    (M'.stateKernel π) hγ₀ hγ measurable_policyReward (fun y ↦ (hf y).1) (fun y ↦ (hf y).2) hV₀
+    hV hm (by positivity) hε9 (fun l hl x ↦ (h l hl x).trans (add_le_add (le_of_eq ?_) ?_))
+    s).trans_eq ?_
+  · congr 1
+    ring
+  · -- the bound `b l` of the level `l` is nonnegative
+    have hb := Kernel.mem_Icc_of_eq_integral_resolvent_sqrt_variance hγ₀ hγ measurable_policyReward
+      (fun y ↦ (hf y).1) (fun y ↦ (hf y).2) hV₀ hV l x
+    have hbL : 0 ≤ C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / N := by
+      have := hb.1.trans hb.2
+      positivity
+    calc C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / (3 * N)
+        = C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / N / 3 := by
+          rw [div_div, mul_comm (3 : ℝ)]
+      _ ≤ C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / N * 2 := by linarith
+      _ = 2 * L / N * (C / ((1 - γ) * (γ * √(1 - γ)) ^ l)) := by ring
+  · rw [div_div]
+
 /-- **Model-based policy evaluation with a generative model** [LWCGC24, Lemma 1]. Under the
 generative model of an MDP `M` with `S` states, finitely many actions and rewards in `[0, C]`, let
 `γ < 1`, `π` a stationary policy, `δ > 0` and `L = log (4 S log (e / (1 - γ)) / δ)`. If
@@ -188,65 +250,40 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le [Fintype 𝓢] 
       |(M.empirical N ω).value γ π s - M.value γ π s| ≤
         3 * C * √(2 * log (4 * Fintype.card 𝓢 * log (exp 1 / (1 - γ)) / δ) /
           (N * (1 - γ) ^ 3))} := by
-  -- We apply the deterministic comparison of resolvents
-  -- `Kernel.abs_integral_resolvent_sub_integral_resolvent_le_of_abs_sub_le` with `ε = 2 L / N`
-  -- and `m = ⌈log (1 - γ)⁻¹⌉₊` levels. The functions `V l` of the levels only depend on `M` and
+  -- We apply the deterministic part `abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le`
+  -- with `m = ⌈log (1 - γ)⁻¹⌉₊` levels. The functions `V l` of the levels only depend on `M` and
   -- `π`, so that Bernstein's inequality for the empirical state kernel of `π`, with a union bound
   -- over the `(m + 1) S ≤ 2 S log (e / (1 - γ))` levels and states, gives the deviations it needs.
   rcases le_or_gt 1 δ with hδ1 | hδ1
   · exact (sub_nonpos.2 hδ1).trans measureReal_nonneg
   have hN₀ : (0 : ℝ) < N := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne N)
-  have hγ₁ : (γ : ℝ) < 1 := hγ
-  have hu : 0 < 1 - (γ : ℝ) := sub_pos.2 hγ₁
   have hRabs (p : 𝓢 × 𝓐) : ∀ᵐ x ∂(M.R p), |x| ≤ C :=
-    (hR p).mono fun x hx ↦ abs_le.2 ⟨by linarith [hx.1, hx.2], hx.2⟩
+    (hR p).mono fun x hx ↦ (abs_of_nonneg hx.1).trans_le hx.2
   set f := M.policyReward π with hf_def
-  have hf : Measurable f := .of_discrete
-  have hf₀ (s : 𝓢) : 0 ≤ f s := by
-    rw [hf_def, policyReward_def]
-    exact integral_nonneg fun a ↦ by
-      rw [meanReward_def]
-      exact integral_nonneg_of_ae ((hR _).mono fun x hx ↦ hx.1)
-  have hfC (s : 𝓢) : f s ≤ C := (le_abs_self _).trans (abs_policyReward_le hRabs s)
-  -- both values are resolvents of the same reward `f = r_π`
+  have hf (s : 𝓢) : f s ∈ Set.Icc 0 C := policyReward_mem_Icc hR s
   set P := M.stateKernel π with hP_def
-  have hv (ω : ℕ → 𝓢 × 𝓐 → 𝓢) (s : 𝓢) :
-      (M.empirical N ω).value γ π s - M.value γ π s =
-        ∫ y, f y ∂(Kernel.resolvent γ ((M.empirical N ω).stateKernel π) s) -
-          ∫ y, f y ∂(Kernel.resolvent γ P s) := by
-    have hfe : (M.empirical N ω).policyReward π = f :=
-      funext fun s ↦ by rw [policyReward_def, empirical_R, hf_def, policyReward_def]
-    rw [value_eq_integral_resolvent hγ hRabs, value_eq_integral_resolvent hγ (by simpa using hRabs),
-      hfe]
   -- for `γ = 0`, both values are the reward
   rcases eq_or_ne γ 0 with rfl | hγ₀
   · calc 1 - δ ≤ (streamMeasure M.P).real Set.univ := by simp [hδ.le]
       _ ≤ _ := measureReal_mono fun ω _ ↦ by
         simp only [Set.mem_ofPred_eq]
         intro s
-        rw [hv, Kernel.resolvent_zero, Kernel.resolvent_zero, Kernel.id_apply, sub_self,
-          abs_zero]
-        have hC : 0 ≤ C := (hf₀ s).trans (hfC s)
+        rw [value_eq_policyReward_add hγ (by simpa using hRabs),
+          value_eq_policyReward_add hγ hRabs]
+        have hC : 0 ≤ C := (hf s).1.trans (hf s).2
+        simp only [NNReal.coe_zero, zero_mul, add_zero]
+        rw [policyReward_def, empirical_R, ← policyReward_def, sub_self, abs_zero]
         positivity
   have hγ₀' : 0 < γ := pos_iff_ne_zero.2 hγ₀
-  -- the confidence level `L`, the accuracy `ε = 2 L / N` and the number `m` of levels
+  -- the confidence level `L` and the number `m` of levels
   set S : ℝ := (Fintype.card 𝓢 : ℝ) with hS_def
   set lg : ℝ := log (exp 1 / (1 - γ)) with hlg_def
-  have hlg : lg = 1 + log (1 - γ)⁻¹ := by
-    rw [hlg_def, Real.log_div (Real.exp_pos 1).ne' hu.ne', Real.log_exp, Real.log_inv]
-    ring
-  have hy : 0 ≤ log (1 - (γ : ℝ))⁻¹ :=
-    Real.log_nonneg (one_le_inv₀ hu |>.2 (by linarith [γ.coe_nonneg]))
   set L := log (4 * S * lg / δ) with hL_def
-  set ε := 2 * L / N with hε_def
   set m := ⌈log (1 - (γ : ℝ))⁻¹⌉₊ with hm_def
-  have hm : log (1 - (γ : ℝ))⁻¹ ≤ m := Nat.le_ceil _
-  have hm' : (m : ℝ) + 1 ≤ 2 * lg := by
-    have := Nat.ceil_lt_add_one hy
-    rw [hlg]
-    linarith
+  have hm' : (m : ℝ) + 1 ≤ 2 * lg := Real.natCeil_log_inv_one_sub_add_one_le γ.coe_nonneg hγ
   have hS (s : 𝓢) : 1 ≤ S := Nat.one_le_cast.2 (Fintype.card_pos_iff.2 ⟨s⟩)
-  have hlg1 : 1 ≤ lg := by rw [hlg]; linarith
+  have hlg1 : 1 ≤ 2 * lg := by linarith [(Nat.cast_nonneg m : (0 : ℝ) ≤ m)]
+  have hlg₀ : 0 < lg := by linarith
   have hL (s : 𝓢) : 0 ≤ L := Real.log_nonneg (by rw [le_div_iff₀ hδ]; nlinarith [hS s])
   -- the levels `V l` and their bounds `b l`
   set V : ℕ → 𝓢 → ℝ := fun l ↦ Nat.rec (fun x ↦ ∫ y, f y ∂(Kernel.resolvent γ P x))
@@ -255,16 +292,16 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le [Fintype 𝓢] 
   have hV (l : ℕ) (x : 𝓢) : V (l + 1) x = ∫ y, √Var[V l; P y] ∂(Kernel.resolvent γ P x) := rfl
   set b : ℕ → ℝ := fun l ↦ C / ((1 - γ) * (γ * √(1 - γ)) ^ l) with hb_def
   have hVb : ∀ l y, V l y ∈ Set.Icc 0 (b l) :=
-    Kernel.mem_Icc_of_eq_integral_resolvent_sqrt_variance hγ₀' hγ hf hf₀ hfC hV₀ hV
+    Kernel.mem_Icc_of_eq_integral_resolvent_sqrt_variance hγ₀' hγ measurable_policyReward
+      (fun s ↦ (hf s).1) (fun s ↦ (hf s).2) hV₀ hV
   -- the bad events: a Bernstein deviation fails at some level `l ≤ m` and state `s`
   set bad : Fin (m + 1) × 𝓢 → Set (ℕ → 𝓢 × 𝓐 → 𝓢) := fun i ↦ {ω |
-    √(ε * Var[V i.1; P i.2]) + ε * b i.1 <
+    √(2 * Var[V i.1; P i.2] * L / N) + b i.1 * L / (3 * N) <
       |∫ y, V i.1 y ∂((M.empirical N ω).stateKernel π i.2) - ∫ y, V i.1 y ∂(P i.2)|}
     with hbad_def
   have h_bad (i : Fin (m + 1) × 𝓢) :
       (streamMeasure M.P).real (bad i) ≤ δ / Fintype.card (Fin (m + 1) × 𝓢) := by
     have hS := hS i.2
-    have hL := hL i.2
     have hpos : 0 < 4 * S * lg / δ := by positivity
     have hcard : (Fintype.card (Fin (m + 1) × 𝓢) : ℝ) = (m + 1) * S := by
       simp [hS_def, Fintype.card_prod]
@@ -276,7 +313,8 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le [Fintype 𝓢] 
       have h_empty : bad i = ∅ := by
         ext ω
         simp only [hbad_def, Set.mem_ofPred_eq, hV0, Pi.zero_apply, integral_zero, sub_self,
-          abs_zero, ← hb0, mul_zero, add_zero, Set.mem_empty_iff_false, iff_false, not_lt]
+          abs_zero, ← hb0, zero_mul, zero_div, add_zero, Set.mem_empty_iff_false, iff_false,
+          not_lt]
         exact Real.sqrt_nonneg _
       rw [h_empty, measureReal_empty]
       positivity
@@ -284,37 +322,22 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le [Fintype 𝓢] 
     refine le_trans (measureReal_mono (fun ω (hω : _ < _) ↦ ?_) (measure_ne_top _ _))
       ((measureReal_sqrt_variance_add_le_abs_integral_sub_integral_stateKernel_empirical_le M π
         (l := 0) (u := b i.1) (s := i.2) hbpos (fun a ↦ .of_forall (hVb i.1)) N L).trans ?_)
-    · rw [Set.mem_ofPred_eq, abs_sub_comm]
-      refine le_trans (add_le_add (le_of_eq ?_) ?_) hω.le
-      · rw [hε_def]
-        congr 1
-        ring
-      · have hbL : 0 ≤ b i.1 * L / N := by positivity
-        calc (b i.1 - 0) * L / (3 * N) = b i.1 * L / N / 3 := by
-              rw [sub_zero, div_div, mul_comm (3 : ℝ)]
-          _ ≤ b i.1 * L / N * 2 := by linarith
-          _ = ε * b i.1 := by rw [hε_def]; ring
+    · rw [Set.mem_ofPred_eq, abs_sub_comm, sub_zero]
+      exact hω.le
     · rw [hcard, Real.exp_neg, hL_def, Real.exp_log hpos, inv_div]
       calc 2 * (δ / (4 * S * lg)) = δ / (2 * S * lg) := by field_simp; ring
         _ ≤ δ / ((m + 1) * S) :=
           div_le_div_of_nonneg_left hδ.le (by positivity) (by nlinarith)
-  -- outside the bad events, the deterministic comparison of resolvents applies
+  -- outside the bad events, the deterministic part applies
   refine (one_sub_le_measureReal_compl_iUnion hδ.le h_bad).trans
     (measureReal_mono fun ω hω ↦ ?_)
   simp only [Set.mem_compl_iff, Set.mem_iUnion, not_exists] at hω
   simp only [Set.mem_ofPred_eq]
   intro s
-  have hε₀ : 0 ≤ ε := by have := hL s; positivity
-  have hε9 : 9 * ε ≤ 1 - γ := by
-    rw [hε_def, ← mul_div_assoc, div_le_iff₀ hN₀]
-    linarith
-  rw [hv]
-  refine (Kernel.abs_integral_resolvent_sub_integral_resolvent_le_of_abs_sub_le
-    ((M.empirical N ω).stateKernel π) hγ₀' hγ hf hf₀ hfC hV₀ hV hm hε₀ hε9
-    (fun l hl x ↦ ?_) s).trans_eq ?_
-  · have h := hω (⟨l, Nat.lt_succ_of_le hl⟩, x)
-    simp only [hbad_def, Set.mem_ofPred_eq, not_lt] at h
-    exact h
-  · rw [hε_def, div_div]
+  refine abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le (empirical_R M N ω) hγ₀' hγ hR
+    π hV₀ hV (Nat.le_ceil _) hN₀ (hL s) hN (fun l hl x ↦ ?_) s
+  have h := hω (⟨l, Nat.lt_succ_of_le hl⟩, x)
+  simp only [hbad_def, Set.mem_ofPred_eq, not_lt] at h
+  exact h
 
 end Learning.MDP

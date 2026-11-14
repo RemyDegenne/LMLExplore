@@ -6,6 +6,7 @@ Authors: LMLExplore contributors
 module
 
 public import LMLExplore.MarkovDecisionProcess.Absorbing.Basic
+public import LMLExplore.MarkovDecisionProcess.Absorbing.StateAction
 public import LMLExplore.ReinforcementLearning.Generative.Basic
 import LMLExplore.Probability.Moments.Variance
 import LMLExplore.SequentialLearning.SumRewards
@@ -50,12 +51,21 @@ difference, where [AKY20] uses its sup norm; this only changes the absolute cons
 ## Main statements
 
 * `Learning.MDP.indepFun_comp_redirect_empirical`: every function of the redirection of the
-  empirical MDP on a set `S` of pairs is independent of the samples of the pairs of `S`.
+  empirical MDP on a set `S` of pairs is independent of the samples of each pair of `S`.
 * `Learning.MDP.indepFun_comp_absorbing_empirical`: every function of the `s`-absorbing
   modification of the empirical MDP is independent of the samples of `(s, a)`.
+* `Learning.MDP.indepFun_comp_saAbsorbing_empirical`: every function of the `p`-absorbing
+  modification of the empirical MDP (`MarkovDecisionProcess/Absorbing/StateAction.lean`) is
+  independent of the samples of `p`, the leave-one-out decoupling of [LWCGC24, §6.3.2].
+* `Learning.MDP.measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_redirect_le`:
+  Bernstein's inequality at each pair of `S` for the functions of the redirections of the
+  empirical MDP on `S`.
 * `Learning.MDP.measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_absorbing_le`:
   Bernstein's inequality for the values of the absorbing modifications of the empirical MDP
   [AKY20, Lemma 6].
+* `measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_saAbsorbing_le` (in
+  `Learning.MDP`): Bernstein's inequality at `p` for the functions of the `p`-absorbing
+  modifications of the empirical MDP [LWCGC24, (92)].
 * `le_streamMeasure_forall_abs_integral_optValue_empirical_sub_integral_optValue_empirical_le` and
   `le_streamMeasure_forall_abs_integral_value_empirical_sub_integral_value_empirical_le` (in
   `Learning.MDP`): the Bernstein-type bounds for the optimal value of the empirical MDP and for
@@ -65,6 +75,9 @@ difference, where [AKY20] uses its sup norm; this only changes the absolute cons
 
 * [A. Agarwal, S. Kakade and L. F. Yang, *Model-based reinforcement learning with a generative
   model is minimax optimal*, COLT 2020][AKY20], §4.2
+* [G. Li, Y. Wei, Y. Chi, Y. Gu and Y. Chen, *Breaking the sample size barrier in model-based
+  reinforcement learning with a generative model*, Operations Research, 2024][LWCGC24], §6.3.2
+  and (92) (arXiv:2005.12900)
 -/
 
 public section
@@ -126,6 +139,38 @@ theorem indepFun_comp_absorbing_empirical (M : MDP 𝓢 𝓐 𝓡) (N : ℕ) [Ne
   simp_rw [absorbing_def]
   exact indepFun_comp_redirect_empirical M N F _ s c (p := (s, a)) (Set.mem_singleton s)
 
+/-- **Leave-one-out decoupling** [LWCGC24, §6.3.2]. Under the generative model of `M`, every
+function of the `p`-absorbing modification of the empirical MDP is independent of the samples of
+the pair `p`: the modification is computed from the samples of the other pairs. -/
+theorem indepFun_comp_saAbsorbing_empirical (M : MDP 𝓢 𝓐 𝓡) (N : ℕ) [NeZero N] {β : Type*}
+    [MeasurableSpace β] (F : MDP 𝓢 𝓐 𝓡 → β) (p : 𝓢 × 𝓐) (c : 𝓡) :
+    IndepFun (fun ω ↦ F ((M.empirical N ω).saAbsorbing p c)) (fun ω i ↦ ω i p)
+      (streamMeasure M.P) := by
+  simp_rw [saAbsorbing_def]
+  exact indepFun_comp_redirect_empirical M N F _ p.1 c (Set.mem_singleton p)
+
+/-- **Bernstein's inequality for the redirections of the empirical MDP.** Under the generative
+model of `M`, let `G M'` be a function on the states computed from an MDP `M'`, with values in
+`[l, u]`, `l < u`, at the redirections to `s` with reward `c` of the empirical MDPs on a
+measurable set `S` of pairs. For `N ≠ 0`, every pair `p ∈ S` and every `x`, the one-step
+prediction error `|∫ v dP p - ∫ v dP̂ p|` of `v = G ((M.empirical N ω).redirect hS s c)` is at
+least `√(2 Var_{P p}(v) x / N) + (u - l) x / (3 N)` with probability at most `2 exp (-x)`. -/
+theorem measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_redirect_le
+    (M : MDP 𝓢 𝓐 𝓡) (N : ℕ) [NeZero N] (G : MDP 𝓢 𝓐 𝓡 → 𝓢 → ℝ) {l u : ℝ} (hlu : l < u)
+    {S : Set (𝓢 × 𝓐)} (hS : MeasurableSet S) (s : 𝓢) (c : 𝓡)
+    (hG : ∀ ω s', G ((M.empirical N ω).redirect hS s c) s' ∈ Set.Icc l u) {p : 𝓢 × 𝓐}
+    (hp : p ∈ S) (x : ℝ) :
+    (streamMeasure M.P).real {ω |
+      √(2 * Var[G ((M.empirical N ω).redirect hS s c); M.P p] * x / N) +
+        (u - l) * x / (3 * N) ≤
+      |∫ s', G ((M.empirical N ω).redirect hS s c) s' ∂(M.P p) -
+        ∫ s', G ((M.empirical N ω).redirect hS s c) s' ∂((M.empirical N ω).P p)|} ≤
+      2 * exp (-x) := by
+  simpa only [empirical_P] using
+    measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empiricalKernel_le_of_indepFun M.P
+      (measurable_comp_empirical M N fun M' ↦ G (M'.redirect hS s c))
+      (indepFun_comp_redirect_empirical M N G hS s c hp) hlu hG N x
+
 /-- **Bernstein's inequality for the absorbing modifications of the empirical MDP** [AKY20,
 Lemma 6]. Under the generative model of `M`, let `G M'` be a function on the states computed from
 an MDP `M'` (for instance its optimal value), with values in `[l, u]`, `l < u`, at the
@@ -143,10 +188,30 @@ theorem measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_abs
       |∫ s', G ((M.empirical N ω).absorbing s c) s' ∂(M.P (s, a)) -
         ∫ s', G ((M.empirical N ω).absorbing s c) s' ∂((M.empirical N ω).P (s, a))|} ≤
       2 * exp (-x) := by
-  simpa only [empirical_P] using
-    measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empiricalKernel_le_of_indepFun M.P
-      (measurable_comp_empirical M N fun M' ↦ G (M'.absorbing s c))
-      (indepFun_comp_absorbing_empirical M N G s c a) hlu hG N x
+  simp_rw [absorbing_def] at hG ⊢
+  exact measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_redirect_le M N G hlu
+    _ s c hG (p := (s, a)) (Set.mem_singleton s) x
+
+/-- **Bernstein's inequality for the state-action absorbing modifications of the empirical MDP**
+[LWCGC24, (92)]. Under the generative model of `M`, let `G M'` be a function on the states
+computed from an MDP `M'` (for instance a value of its greedy optimal policy), with values in
+`[l, u]`, `l < u`, at the `p`-absorbing modifications of the empirical MDPs with reward `c`. For
+`N ≠ 0` and every `x`, the one-step prediction error `|∫ v dP p - ∫ v dP̂ p|` of
+`v = G ((M.empirical N ω).saAbsorbing p c)` is at least
+`√(2 Var_{P p}(v) x / N) + (u - l) x / (3 N)` with probability at most `2 exp (-x)`. -/
+theorem measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_saAbsorbing_le
+    (M : MDP 𝓢 𝓐 𝓡) (N : ℕ) [NeZero N] (G : MDP 𝓢 𝓐 𝓡 → 𝓢 → ℝ) {l u : ℝ} (hlu : l < u)
+    (p : 𝓢 × 𝓐) (c : 𝓡) (hG : ∀ ω s', G ((M.empirical N ω).saAbsorbing p c) s' ∈ Set.Icc l u)
+    (x : ℝ) :
+    (streamMeasure M.P).real {ω |
+      √(2 * Var[G ((M.empirical N ω).saAbsorbing p c); M.P p] * x / N) +
+        (u - l) * x / (3 * N) ≤
+      |∫ s', G ((M.empirical N ω).saAbsorbing p c) s' ∂(M.P p) -
+        ∫ s', G ((M.empirical N ω).saAbsorbing p c) s' ∂((M.empirical N ω).P p)|} ≤
+      2 * exp (-x) := by
+  simp_rw [saAbsorbing_def] at hG ⊢
+  exact measureReal_sqrt_variance_add_le_abs_integral_sub_integral_empirical_redirect_le M N G hlu
+    _ p.1 c hG (Set.mem_singleton p) x
 
 end Decoupling
 
