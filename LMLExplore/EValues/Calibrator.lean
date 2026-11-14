@@ -10,7 +10,7 @@ public import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
 public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 public import Mathlib.Topology.Semicontinuity.Defs
 import Mathlib.Analysis.SpecialFunctions.Pow.Continuity
-import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
+import LMLExplore.Analysis.SpecialFunctions.Pow.Deriv
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 import LMLExplore.Topology.Order.LeftRightLim
 import LMLExplore.Topology.Semicontinuity.ENNReal
@@ -115,10 +115,6 @@ theorem isPToECalibrator_iff_isEVar :
   exact hf.isEVar_comp (by simp only [mem_singleton_iff, forall_eq]; infer_instance)
     isExactPVar_ofReal_volume.toIsPVar
 
-/-- An element of `ℝ≥0∞` at most `1` has real part at most `1`. -/
-private lemma toReal_le_one_of_le_one {x : ℝ≥0∞} (hx : x ≤ 1) : x.toReal ≤ 1 :=
-  ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using hx)
-
 /-- A calibrator is at most `x ↦ x⁻¹`: `x f x ≤ ∫₀ˣ f ≤ 1`. -/
 theorem IsPToECalibrator.le_inv (hf : IsPToECalibrator f) (x : ℝ≥0∞) : f x ≤ x⁻¹ := by
   rcases lt_or_ge 1 x with hx | hx
@@ -131,7 +127,8 @@ theorem IsPToECalibrator.le_inv (hf : IsPToECalibrator f) (x : ℝ≥0∞) : f x
         setLIntegral_mono (hf.measurable.comp ENNReal.measurable_ofReal) fun u hu ↦
           hf.antitone (ENNReal.ofReal_le_of_le_toReal hu.2)
     _ ≤ ∫⁻ u in Icc (0 : ℝ) 1, f (ENNReal.ofReal u) :=
-        lintegral_mono_set (Icc_subset_Icc_right (toReal_le_one_of_le_one hx))
+        lintegral_mono_set (Icc_subset_Icc_right
+          (ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using hx)))
     _ ≤ 1 := hf.lintegral_le_one
 
 /-! ### Rescaling and mixtures -/
@@ -166,8 +163,8 @@ private lemma setLIntegral_const_mul_comp_mul (h_meas : Measurable f)
     rw [ENNReal.ofReal_mul ha0.le, ENNReal.ofReal_coe_nnreal]
   simp_rw [h_eq]
   have h_inv : (a : ℝ≥0∞) * ENNReal.ofReal ((a : ℝ) ^ (-1 : ℝ)) = 1 := by
-    rw [Real.rpow_neg_one, ENNReal.ofReal_inv_of_pos ha0, ENNReal.ofReal_coe_nnreal,
-      ENNReal.mul_inv_cancel (by simpa using ha0.ne') ENNReal.coe_ne_top]
+    simp [Real.rpow_neg_one, ENNReal.ofReal_inv_of_pos ha0, ENNReal.mul_inv_cancel,
+      (zero_lt_one.trans_le ha).ne']
   rw [lintegral_const_mul (f := fun x ↦ f (ENNReal.ofReal (a * x))) _
       (h_meas.comp (ENNReal.measurable_ofReal.comp (measurable_const_mul _))), h_cov,
     setLIntegral_Icc_ofReal_of_eq_zero h_zero (by exact_mod_cast ha), ← mul_assoc, h_inv, one_mul]
@@ -300,7 +297,7 @@ private lemma eq_of_le_of_upperSemicontinuous
     rw [Measure.restrict_apply measurableSet_Ioo,
       inter_eq_left.2 fun v (hv : v ∈ Ioo l.toReal x.toReal) ↦ mem_Icc.2
         ⟨ENNReal.toReal_nonneg.trans hv.1.le, hv.2.le.trans
-          (toReal_le_one_of_le_one hx1)⟩, Real.volume_Ioo]
+          (ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using hx1))⟩, Real.volume_Ioo]
     exact ENNReal.ofReal_pos.2 (sub_pos.2 ((ENNReal.toReal_lt_toReal hl_top hx_top).2 hlx))
   refine h_pos.ne' (measure_mono_null (fun v hv ↦ ?_) (ae_iff.1 h_ae))
   have hv0 : 0 ≤ v := ENNReal.toReal_nonneg.trans hv.1.le
@@ -375,8 +372,8 @@ theorem setLIntegral_powCalibrator {κ : ℝ} (hκ : 0 < κ) :
       rw [powCalibrator_of_le_one _ (ENNReal.ofReal_le_one.2 hx.2.le),
         ENNReal.ofReal_rpow_of_pos hx.1],
     lintegral_const_mul _ (by fun_prop),
-    TauCeti.lintegral_ofReal_rpow_Ioo (by linarith) zero_le_one, sub_add_cancel,
-    Real.one_rpow, ← ENNReal.ofReal_mul hκ.le, mul_one_div_cancel hκ.ne', ENNReal.ofReal_one]
+    TauCeti.lintegral_ofReal_rpow_Ioo (by linarith) zero_le_one, ← ENNReal.ofReal_mul hκ.le]
+  simp [hκ.ne']
 
 /-- The power calibrators `x ↦ κ x ^ (κ - 1)`, `0 < κ ≤ 1`, are calibrators. -/
 theorem isPToECalibrator_powCalibrator {κ : ℝ} (hκ0 : 0 < κ) (hκ1 : κ ≤ 1) :
@@ -437,18 +434,6 @@ theorem isPToECalibrator_powMixCalibrator : IsPToECalibrator powMixCalibrator :=
   filter_upwards [ae_restrict_mem measurableSet_Ioo] with κ hκ
   exact isPToECalibrator_powCalibrator hκ.1 hκ.2.le
 
-/-- An antiderivative of `κ ↦ κ x ^ (κ - 1)`, for `x > 0` with `log x ≠ 0`. -/
-private lemma hasDerivAt_rpow_sub_one_mul {x : ℝ} (hx : 0 < x) (hlog : Real.log x ≠ 0) (κ : ℝ) :
-    HasDerivAt (fun κ ↦ x ^ (κ - 1) * (κ * Real.log x - 1) / Real.log x ^ 2)
-      (κ * x ^ (κ - 1)) κ := by
-  have h_pow : HasDerivAt (fun κ ↦ x ^ (κ - 1)) (x ^ (κ - 1) * Real.log x) κ := by
-    exact HasDerivAt.comp_sub_const κ 1 (Real.hasStrictDerivAt_const_rpow hx (κ - 1)).hasDerivAt
-  refine ((h_pow.mul (((hasDerivAt_id κ).mul_const (Real.log x)).sub_const 1)).div_const
-    (Real.log x ^ 2)).congr_deriv ?_
-  simp only [id]
-  field_simp
-  ring
-
 /-- **The closed form of the mixture of the power calibrators** [RW, (2.2)]: on `(0, 1)`,
 `∫₀¹ κ x ^ (κ - 1) dκ = (1 - x + x log x) / (x (log x) ^ 2)`. -/
 theorem powMixCalibrator_ofReal {x : ℝ} (hx0 : 0 < x) (hx1 : x < 1) :
@@ -460,7 +445,7 @@ theorem powMixCalibrator_ofReal {x : ℝ} (hx0 : 0 < x) (hx1 : x < 1) :
   have h_int : ∫ κ in (0 : ℝ)..1, κ * x ^ (κ - 1) =
       (1 - x + x * Real.log x) / (x * Real.log x ^ 2) := by
     rw [intervalIntegral.integral_eq_sub_of_hasDerivAt
-      (fun κ _ ↦ hasDerivAt_rpow_sub_one_mul hx0 hlog κ) (h_cont.intervalIntegrable _ _)]
+      (fun κ _ ↦ Real.hasDerivAt_rpow_sub_one_mul hx0 hlog κ) (h_cont.intervalIntegrable _ _)]
     simp only [sub_self, Real.rpow_zero, one_mul, zero_sub, zero_mul, Real.rpow_neg_one]
     field_simp
     ring
