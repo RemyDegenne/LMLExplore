@@ -468,27 +468,10 @@ theorem IsTestSupermartingale.ae_eq_mul_prod_div (hM : IsTestSupermartingale M �
 theorem IsENNSupermartingale.setLIntegral_mul_succ_le (hM : IsENNSupermartingale M ℱ S)
     (hP : P ∈ S) {n : ℕ} {Y : Ω → ℝ≥0∞} (hY : Measurable[ℱ n] Y) {s : Set Ω}
     (hs : MeasurableSet[ℱ n] s) :
-    ∫⁻ ω in s, Y ω * M (n + 1) ω ∂P ≤ ∫⁻ ω in s, Y ω * M n ω ∂P := by
-  rw [← lintegral_indicator (ℱ.le n s hs), ← lintegral_indicator (ℱ.le n s hs)]
-  simp_rw [indicator_mul_left]
-  exact lintegral_mul_le_lintegral_mul_of_forall_setLIntegral_le (ℱ.le n)
+    ∫⁻ ω in s, Y ω * M (n + 1) ω ∂P ≤ ∫⁻ ω in s, Y ω * M n ω ∂P :=
+  setLIntegral_mul_le_setLIntegral_mul_of_forall_setLIntegral_le (ℱ.le n)
     (hM.measurable (n + 1)).aemeasurable (hM.measurable n).aemeasurable
-    (hM.setLIntegral_succ_le P hP n) (hY.indicator hs)
-
-/-- A factor `Y` and a set `s` that are `ℱ n`-measurable can be pulled out of a martingale step
-of an adapted `ℝ≥0∞`-valued process, that is, a step whose set integrals over `ℱ n`-measurable
-sets agree at times `n` and `n + 1`:
-`∫⁻ ω in s, Y ω * M (n + 1) ω ∂P = ∫⁻ ω in s, Y ω * M n ω ∂P`. This applies to a test martingale,
-but no bound on the initial expectation is needed. -/
-theorem _root_.MeasureTheory.Adapted.setLIntegral_mul_succ_eq (hM : Adapted ℱ M) {n : ℕ}
-    (hMn : ∀ s, MeasurableSet[ℱ n] s → ∫⁻ ω in s, M (n + 1) ω ∂P = ∫⁻ ω in s, M n ω ∂P)
-    {Y : Ω → ℝ≥0∞} (hY : Measurable[ℱ n] Y) {s : Set Ω} (hs : MeasurableSet[ℱ n] s) :
-    ∫⁻ ω in s, Y ω * M (n + 1) ω ∂P = ∫⁻ ω in s, Y ω * M n ω ∂P := by
-  rw [← lintegral_indicator (ℱ.le n s hs), ← lintegral_indicator (ℱ.le n s hs)]
-  simp_rw [indicator_mul_left]
-  exact lintegral_mul_eq_lintegral_mul_of_forall_setLIntegral_eq (ℱ.le n)
-    ((hM (n + 1)).mono (ℱ.le (n + 1)) le_rfl).aemeasurable
-    ((hM n).mono (ℱ.le n) le_rfl).aemeasurable hMn (hY.indicator hs)
+    (hM.setLIntegral_succ_le P hP n) hY hs
 
 /-! ### Minima -/
 
@@ -597,7 +580,10 @@ theorem IsTestMartingale.stoppedProcess_mul {A B : ℕ → Ω → ℝ≥0∞}
   rw [setLIntegral_stoppedProcess_mul_eq hτ hB1 n.le_succ le_rfl hs,
     setLIntegral_stoppedProcess_mul_eq hτ hB1 le_rfl n.le_succ hs]
   congr 1
-  · exact hBa.setLIntegral_mul_succ_eq (hB P hP n) (hAτ n) (hs.inter (hτ.measurableSet_le n))
+  · exact setLIntegral_mul_eq_setLIntegral_mul_of_forall_setLIntegral_eq (ℱ.le n)
+      ((hBa (n + 1)).mono (ℱ.le (n + 1)) le_rfl).aemeasurable
+      ((hBa n).mono (ℱ.le n) le_rfl).aemeasurable (hB P hP n) (hAτ n)
+      (hs.inter (hτ.measurableSet_le n))
   · exact hA.setLIntegral_succ_eq P hP n _ (hs.diff (hτ.measurableSet_le n))
 
 /-- An `ℝ≥0∞`-valued supermartingale stopped at a stopping time is a supermartingale. -/
