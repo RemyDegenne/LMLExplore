@@ -43,7 +43,7 @@ of a bet `1 + ∑ i, π i * g i`.
 ## Main statements
 
 * `LMLExplore.iSup_iInf_add_le_iInf`: weak duality in `EReal`, with no hypothesis.
-* `LMLExplore.isMinOn_of_isMinOn_add_sum_mul`: a minimizer of a Lagrangian with complementary
+* `IsMinOn.of_add_sum_mul`: a minimizer of a Lagrangian with complementary
   slackness minimizes the program, with no hypothesis.
 * `LMLExplore.exists_ne_zero_forall_le_of_convexLike`: Fritz John multipliers for convex-like data,
   with no constraint qualification.
@@ -87,11 +87,21 @@ variable {X ι : Type*} {C : Set X} {F : X → ℝ} {h : ι → X → ℝ}
 
 namespace LMLExplore
 
+/-- A sum of products of nonnegative and nonpositive reals is nonpositive. -/
+private lemma sum_mul_nonpos [Fintype ι] {c v : ι → ℝ} (hc : ∀ i, 0 ≤ c i) (hv : ∀ i, v i ≤ 0) :
+    ∑ i, c i * v i ≤ 0 :=
+  Finset.sum_nonpos fun i _ ↦ mul_nonpos_of_nonneg_of_nonpos (hc i) (hv i)
+
+/-- Products of nonnegative and nonpositive reals with a nonnegative sum all vanish. -/
+private lemma mul_eq_zero_of_sum_mul_nonneg [Fintype ι] {c v : ι → ℝ} (hc : ∀ i, 0 ≤ c i)
+    (hv : ∀ i, v i ≤ 0) (hs : 0 ≤ ∑ i, c i * v i) (i : ι) : c i * v i = 0 :=
+  (Finset.sum_eq_zero_iff_of_nonpos fun i _ ↦ mul_nonpos_of_nonneg_of_nonpos (hc i) (hv i)).1
+    ((sum_mul_nonpos hc hv).antisymm hs) i (Finset.mem_univ _)
+
 /-- The Lagrangian of a nonnegative multiplier is below the objective on the feasible set. -/
 private lemma add_sum_mul_le [Fintype ι] (π : ι → ℝ≥0) {x : X} (hx : ∀ i, h i x ≤ 0) :
     F x + ∑ i, (π i : ℝ) * h i x ≤ F x :=
-  add_le_of_nonpos_right <| Finset.sum_nonpos fun i _ ↦
-    mul_nonpos_of_nonneg_of_nonpos (π i).2 (hx i)
+  add_le_of_nonpos_right <| sum_mul_nonpos (fun i ↦ (π i).2) hx
 
 /-- **Weak duality** in `EReal`: for every problem, the supremum over the multipliers of the
 infimum of the Lagrangian over `C` is below the infimum of the objective on the feasible set. -/
@@ -105,14 +115,13 @@ theorem iSup_iInf_add_le_iInf [Fintype ι] :
 Lagrangian `F y + ∑ i, π i * h i y` of some multiplier `π : ι → ℝ≥0`, with complementary slackness
 `π i * h i x = 0` for every `i`, then `x` minimizes `F` over `{y ∈ C | ∀ i, h i y ≤ 0}`. No
 convexity or constraint qualification is needed. -/
-theorem isMinOn_of_isMinOn_add_sum_mul [Fintype ι] {π : ι → ℝ≥0} {x : X}
+theorem _root_.IsMinOn.of_add_sum_mul [Fintype ι] {π : ι → ℝ≥0} {x : X}
     (hmin : IsMinOn (fun y ↦ F y + ∑ i, (π i : ℝ) * h i y) C x)
     (hslack : ∀ i, (π i : ℝ) * h i x = 0) : IsMinOn F {y ∈ C | ∀ i, h i y ≤ 0} x := by
   refine isMinOn_iff.2 fun y ⟨hy, hyh⟩ ↦ ?_
   have hle := isMinOn_iff.1 hmin y hy
   simp only [hslack, Finset.sum_const_zero, add_zero] at hle
   exact hle.trans (add_sum_mul_le π hyh)
-
 
 /-- The objective (`none`) and the constraints (`some i`) of the program, as one family. -/
 private def objConstr (F : X → ℝ) (h : ι → X → ℝ) (j : Option ι) (x : X) : ℝ :=
@@ -252,14 +261,10 @@ theorem exists_forall_le_add_sum_mul_of_convexLike [Fintype ι]
   -- `c (some i) * h i x₀ ≤ 0` would have a nonnegative sum, so every coefficient would vanish.
   have hc_pos : 0 < c none := by
     refine (hc_nonneg none).lt_of_ne' fun h0 ↦ hc ?_
-    have hsum := hcx x₀ hx₀
-    rw [h0, zero_mul, zero_mul, zero_add] at hsum
-    have hterm (i : ι) : c (some i) * h i x₀ ≤ 0 :=
-      mul_nonpos_of_nonneg_of_nonpos (hc_nonneg _) (hx₀h i).le
-    have hzero (i : ι) : c (some i) = 0 := by
-      have := (Finset.sum_eq_zero_iff_of_nonpos fun i _ ↦ hterm i).1
-        (le_antisymm (Finset.sum_nonpos fun i _ ↦ hterm i) hsum) i (Finset.mem_univ _)
-      exact (mul_eq_zero.1 this).resolve_right (hx₀h i).ne
+    have hsum : 0 ≤ ∑ i, c (some i) * h i x₀ := by simpa [h0] using hcx x₀ hx₀
+    have hzero (i : ι) : c (some i) = 0 :=
+      (mul_eq_zero.1 (mul_eq_zero_of_sum_mul_nonneg (fun _ ↦ hc_nonneg _) (fun i ↦ (hx₀h i).le)
+        hsum i)).resolve_right (hx₀h i).ne
     ext (_ | i)
     exacts [h0, hzero i]
   -- Normalize the coefficient of the objective to `1`.
@@ -276,9 +281,12 @@ theorem exists_forall_le_add_sum_mul_of_convexLike [Fintype ι]
     exact hcx x hx
   exact ⟨fun i ↦ ⟨c (some i) / c none, div_nonneg (hc_nonneg _) hc_pos.le⟩, hL⟩
 
-/-- **Weak duality.** For every multiplier `π : ι → ℝ≥0`, the infimum over `C` of the Lagrangian
-`F x + ∑ i, π i * h i x` is at most the infimum of `F` over the feasible set
-`{x ∈ C | ∀ i, h i x ≤ 0}`. Values are in `EReal`, so no boundedness is assumed: when `F` is
+/-- **Strong duality under Slater's condition with an attained dual optimum**, for convex-like
+data [Fan53]. Let `F` and finitely many `h i` be jointly convex-like on a set `C`, as in
+`LMLExplore.exists_forall_le_add_sum_mul_of_convexLike`. If some `x₀ ∈ C` satisfies `h i x₀ < 0` for
+every `i`, then some multiplier `π : ι → ℝ≥0` makes the infimum of `F` over the feasible set
+`{x ∈ C | ∀ i, h i x ≤ 0}` equal to the infimum over `C` of the Lagrangian
+`F x + ∑ i, π i * h i x`. Values are in `EReal`, so no boundedness is assumed: when `F` is
 unbounded below on the feasible set, both sides are `⊥`. -/
 theorem exists_iInf_eq_iInf_add_of_convexLike [Fintype ι]
     (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
@@ -328,20 +336,16 @@ theorem isMinOn_iff_exists_isMinOn_add_sum_mul_of_convexLike [Fintype ι]
     IsMinOn F {y ∈ C | ∀ i, h i y ≤ 0} x ↔
       ∃ π : ι → ℝ≥0, IsMinOn (fun y ↦ F y + ∑ i, (π i : ℝ) * h i y) C x ∧
         ∀ i, (π i : ℝ) * h i x = 0 := by
-  have hterm (π : ι → ℝ≥0) (y : X) (hyh : ∀ i, h i y ≤ 0) (i : ι) : (π i : ℝ) * h i y ≤ 0 :=
-    mul_nonpos_of_nonneg_of_nonpos (π i).2 (hyh i)
   constructor
   · intro hmin
     obtain ⟨π, hπ⟩ := exists_forall_le_add_sum_mul_of_convexLike hconv hslater (m := F x)
       fun y hy hyh ↦ isMinOn_iff.1 hmin y ⟨hy, hyh⟩
     -- At `x` the sum of the nonpositive terms `π i * h i x` is nonnegative, hence each is zero.
-    have hsum : ∑ i, (π i : ℝ) * h i x = 0 :=
-      le_antisymm (Finset.sum_nonpos fun i _ ↦ hterm π x hxh i) (by linarith [hπ x hx])
-    have hslack (i : ι) : (π i : ℝ) * h i x = 0 :=
-      (Finset.sum_eq_zero_iff_of_nonpos fun i _ ↦ hterm π x hxh i).1 hsum i (Finset.mem_univ _)
-    exact ⟨π, isMinOn_iff.2 fun y hy ↦ by simpa [hsum] using hπ y hy, hslack⟩
+    have hslack : ∀ i, (π i : ℝ) * h i x = 0 :=
+      mul_eq_zero_of_sum_mul_nonneg (fun i ↦ (π i).2) hxh (by linarith [hπ x hx])
+    exact ⟨π, isMinOn_iff.2 fun y hy ↦ by simpa [hslack] using hπ y hy, hslack⟩
   · rintro ⟨π, hmin, hslack⟩
-    exact isMinOn_of_isMinOn_add_sum_mul hmin hslack
+    exact hmin.of_add_sum_mul hslack
 
 section ConvexOn
 
