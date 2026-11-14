@@ -33,19 +33,24 @@ model.
 
 For a nonnegative reward `r_π`, the bound can be stated in terms of the value rather than of the
 rewards [LWCGC24, Lemma 11]: if `v^π ≤ B`, the resolvent of the state kernel `P_π` applied to the
-standard deviations `√(Var_{P_π}(v^π))` is at most `B / (γ √(1 - γ))`. The theorems of this
-file apply only to the value `v^π`. The values `V^(l) = R_γ(P_π) √(Var_{P_π}(V^(l-1)))` of the
-successive standard deviations, with `V^(0) = v^π`, are not policy values; the generic form for a
-Markov kernel, `ProbabilityTheory.Kernel.integral_sqrt_variance_integral_resolvent_le`, applied
-with `f = √(Var_{P_π}(V^(l-2)))` (and `f = r_π` for `l = 1`), so that its resolvent is
-`V = V^(l-1)`, bounds each `V^(l)` by `(γ √(1 - γ))⁻¹` times a bound on `V^(l-1)`.
+standard deviations `√(Var_{P_π}(v^π))` is at most `B / (γ √(1 - γ))`. The values
+`V^(l) = R_γ(P_π) √(Var_{P_π}(V^(l-1)))` of the successive standard deviations, with
+`V^(0) = v^π`, are the levels `M.valueLevel γ π l` of [LWCGC24, Lemma 2]; they are not policy
+values. The generic form for a Markov kernel,
+`ProbabilityTheory.Kernel.integral_sqrt_variance_integral_resolvent_le`, applied with
+`f = √(Var_{P_π}(V^(l-2)))` (and `f = r_π` for `l = 1`), so that its resolvent is `V = V^(l-1)`,
+bounds each `V^(l)` by `(γ √(1 - γ))⁻¹` times a bound on `V^(l-1)` [LWCGC24, (73)].
 This recursion is how [LWCGC24] evaluates a fixed policy with a generative model from sample
-sizes of order `(1 - γ)⁻¹`.
+sizes of order `(1 - γ)⁻¹`: if the state kernel `P'_π` of a second MDP `M'` with the same rewards
+deviates from `P_π` on the first `m ≥ log (1 - γ)⁻¹` levels by a Bernstein-type bound, the values
+of `π` in `M` and `M'` are close [LWCGC24, Lemmas 1 and 2].
 
 ## Main definitions
 
 * `Learning.MDP.returnVariance M γ π`: the variance `Σ^π (s, a)` of the discounted return of the
   mean rewards along the state-action chain of `π` started at `(s, a)`.
+* `Learning.MDP.valueLevel M γ π l`: the levels `V 0 = v^π` and
+  `V (l + 1) = R_γ(P_π) √Var_{P_π}(V l)` of [LWCGC24, Lemma 2] for a stationary policy `π`.
 
 ## Main statements
 
@@ -64,6 +69,13 @@ sizes of order `(1 - γ)⁻¹`.
   `Learning.MDP.integral_sqrt_variance_value_stateKernel_resolvent_le`: for `r_π ≥ 0` and
   `v^π ≤ B`, `γ ^ 2 R_γ(P_π) Var_{P_π}(v^π) ≤ 2 B v^π - (v^π) ^ 2` and
   `R_γ(P_π) √(Var_{P_π}(v^π)) ≤ B / (γ √(1 - γ))` [LWCGC24, Lemma 11].
+* `Learning.MDP.valueLevel_mem_Icc`: with rewards in `[0, C]`, the level `l` is in
+  `[0, C / ((1 - γ) (γ √(1 - γ)) ^ l)]` [LWCGC24, (73)].
+* `Learning.MDP.abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le`: the deterministic part
+  of model-based policy evaluation [LWCGC24, Lemmas 1 and 2], for two MDPs with the same rewards,
+  with the deviations in the form given by Bernstein's inequality at a level `L` and `ε = 2 L / N`.
+  It is shared by `ReinforcementLearning/Generative/PolicyEvaluation.lean` [LWCGC24, Lemma 1] and
+  `ReinforcementLearning/Generative/LeaveOneOut.lean` [LWCGC24, Lemma 5].
 
 ## References
 
@@ -72,7 +84,8 @@ sizes of order `(1 - γ)⁻¹`.
 * [M. G. Azar, R. Munos and H. J. Kappen, *Minimax PAC bounds on the sample complexity of
   reinforcement learning with a generative model*, 2013][AMK13]
 * [G. Li, Y. Wei, Y. Chi, Y. Gu and Y. Chen, *Breaking the sample size barrier in model-based
-  reinforcement learning with a generative model*, Operations Research, 2024][LWCGC24], Lemma 11
+  reinforcement learning with a generative model*, Operations Research, 2024][LWCGC24], Lemmas 1,
+  2 and 11 (arXiv:2005.12900)
 -/
 
 public section
@@ -257,5 +270,94 @@ theorem integral_sqrt_variance_value_stateKernel_resolvent_le (hγ₀ : 0 < γ) 
   rw [funext (value_eq_integral_resolvent hγ hR)] at hvB ⊢
   exact Kernel.integral_sqrt_variance_integral_resolvent_le hγ₀ hγ measurable_policyReward
     (abs_policyReward_le hR) hr hvB s
+
+end Learning.MDP
+
+/-! ### The levels of [LWCGC24, Lemma 2] -/
+
+namespace Learning.MDP
+
+open Real (log)
+
+variable {𝓢 𝓐 : Type*} {m𝓢 : MeasurableSpace 𝓢} {m𝓐 : MeasurableSpace 𝓐}
+
+/-- The levels of [LWCGC24, Lemma 2] for a stationary policy `π`, with state kernel `P_π`:
+`V 0 = R_γ(P_π) r_π`, which is the value `v^π` for bounded rewards and `γ < 1`, and
+`V (l + 1) = R_γ(P_π) √Var_{P_π}(V l)`. -/
+noncomputable def valueLevel (M : MDP 𝓢 𝓐 ℝ) (γ : ℝ≥0) (π : Kernel 𝓢 𝓐) : ℕ → 𝓢 → ℝ
+  | 0, x => ∫ y, M.policyReward π y ∂(Kernel.resolvent γ (M.stateKernel π) x)
+  | l + 1, x =>
+    ∫ y, √Var[valueLevel M γ π l; M.stateKernel π y] ∂(Kernel.resolvent γ (M.stateKernel π) x)
+
+@[simp]
+lemma valueLevel_zero (M : MDP 𝓢 𝓐 ℝ) (γ : ℝ≥0) (π : Kernel 𝓢 𝓐) (x : 𝓢) :
+    M.valueLevel γ π 0 x = ∫ y, M.policyReward π y ∂(Kernel.resolvent γ (M.stateKernel π) x) :=
+  (rfl)
+
+@[simp]
+lemma valueLevel_succ (M : MDP 𝓢 𝓐 ℝ) (γ : ℝ≥0) (π : Kernel 𝓢 𝓐) (l : ℕ) (x : 𝓢) :
+    M.valueLevel γ π (l + 1) x =
+      ∫ y, √Var[M.valueLevel γ π l; M.stateKernel π y] ∂(Kernel.resolvent γ (M.stateKernel π) x) :=
+  (rfl)
+
+/-- With rewards in `[0, C]` and `0 < γ < 1`, the level `l` of [LWCGC24, Lemma 2] for a stationary
+policy is in `[0, C / ((1 - γ) (γ √(1 - γ)) ^ l)]` [LWCGC24, (73)]. -/
+lemma valueLevel_mem_Icc {M : MDP 𝓢 𝓐 ℝ} {γ : ℝ≥0} (hγ₀ : 0 < γ) (hγ : γ < 1) {C : ℝ}
+    (hR : ∀ p, ∀ᵐ x ∂(M.R p), x ∈ Set.Icc 0 C) (π : Kernel 𝓢 𝓐) [IsMarkovKernel π] (l : ℕ)
+    (x : 𝓢) : M.valueLevel γ π l x ∈ Set.Icc 0 (C / ((1 - γ) * (γ * √(1 - γ)) ^ l)) :=
+  Kernel.mem_Icc_of_eq_integral_resolvent_sqrt_variance hγ₀ hγ measurable_policyReward
+    (fun y ↦ (policyReward_mem_Icc hR y).1) (fun y ↦ (policyReward_mem_Icc hR y).2)
+    (valueLevel_zero M γ π) (valueLevel_succ M γ π) l x
+
+/-- **The deterministic part of model-based policy evaluation** [LWCGC24, Lemmas 1 and 2]. Let
+`M` and `M'` be MDPs with the same rewards, in `[0, C]`, `0 < γ < 1`, and `π` a stationary policy,
+with state kernels `P_π` in `M` and `P'_π` in `M'`. Let `V = M.valueLevel γ π` be the levels
+`V 0 = v^π` and `V (l + 1) = R_γ(P_π) √Var_{P_π}(V l)` of [LWCGC24, Lemma 2], bounded by
+`b l = C / ((1 - γ) (γ √(1 - γ)) ^ l)`, and `log (1 - γ)⁻¹ ≤ m`. Let `L ≥ 0`, `N > 0` and
+`18 L ≤ (1 - γ) N`. If `P'_π` deviates from `P_π` on the levels `l ≤ m` by the bound
+`√(2 Var_{P_π}(V l) L / N) + b l L / (3 N)` of Bernstein's inequality at the level `L`, then the
+value of `π` in `M'` satisfies `|v'^π - v^π| ≤ 3 C √(2 L / (N (1 - γ) ^ 3))`.
+
+This is `ProbabilityTheory.Kernel.abs_integral_resolvent_sub_integral_resolvent_le_of_abs_sub_le`
+with `ε = 2 L / N`, for the resolvent forms `v^π = R_γ(P_π) r_π` and `v'^π = R_γ(P'_π) r_π` of the
+two values. -/
+theorem abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le {M M' : MDP 𝓢 𝓐 ℝ}
+    (hM' : M'.R = M.R) {γ : ℝ≥0} (hγ₀ : 0 < γ) (hγ : γ < 1) {C : ℝ}
+    (hR : ∀ p, ∀ᵐ x ∂(M.R p), x ∈ Set.Icc 0 C) (π : Kernel 𝓢 𝓐) [IsMarkovKernel π] {m : ℕ}
+    (hm : log (1 - (γ : ℝ))⁻¹ ≤ m) {N L : ℝ} (hN : 0 < N) (hL : 0 ≤ L) (hNL : 18 * L ≤ (1 - γ) * N)
+    (h : ∀ l ≤ m, ∀ x,
+      |∫ y, M.valueLevel γ π l y ∂(M'.stateKernel π x) -
+          ∫ y, M.valueLevel γ π l y ∂(M.stateKernel π x)| ≤
+        √(2 * Var[M.valueLevel γ π l; M.stateKernel π x] * L / N) +
+          C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / (3 * N)) (s : 𝓢) :
+    |M'.value γ π s - M.value γ π s| ≤ 3 * C * √(2 * L / (N * (1 - γ) ^ 3)) := by
+  have hRabs (p : 𝓢 × 𝓐) : ∀ᵐ x ∂(M.R p), |x| ≤ C :=
+    (hR p).mono fun x hx ↦ (abs_of_nonneg hx.1).trans_le hx.2
+  have hf (y : 𝓢) := policyReward_mem_Icc (π := π) hR y
+  -- both values are resolvents of the same reward `r_π`
+  have hfe : M'.policyReward π = M.policyReward π :=
+    funext fun y ↦ by rw [policyReward_def, hM', policyReward_def]
+  rw [value_eq_integral_resolvent hγ (hM' ▸ hRabs), value_eq_integral_resolvent hγ hRabs, hfe]
+  -- Lemma 2 with `ε = 2 L / N`, for which `9 ε ≤ 1 - γ`
+  have hε9 : 9 * (2 * L / N) ≤ 1 - γ := by
+    rw [← mul_div_assoc, div_le_iff₀ hN]
+    linarith
+  refine (Kernel.abs_integral_resolvent_sub_integral_resolvent_le_of_abs_sub_le
+    (M'.stateKernel π) hγ₀ hγ measurable_policyReward (fun y ↦ (hf y).1) (fun y ↦ (hf y).2)
+    (valueLevel_zero M γ π) (valueLevel_succ M γ π) hm (by positivity) hε9
+    (fun l hl x ↦ (h l hl x).trans (add_le_add (le_of_eq ?_) ?_)) s).trans_eq ?_
+  · congr 1
+    ring
+  · -- the bound `b l` of the level `l` is nonnegative
+    have hb := valueLevel_mem_Icc hγ₀ hγ hR π l x
+    have hbL : 0 ≤ C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / N := by
+      have := hb.1.trans hb.2
+      positivity
+    calc C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / (3 * N)
+        = C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / N / 3 := by
+          rw [div_div, mul_comm (3 : ℝ)]
+      _ ≤ C / ((1 - γ) * (γ * √(1 - γ)) ^ l) * L / N * 2 := by linarith
+      _ = 2 * L / N * (C / ((1 - γ) * (γ * √(1 - γ)) ^ l)) := by ring
+  · rw [div_div]
 
 end Learning.MDP
