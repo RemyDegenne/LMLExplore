@@ -445,7 +445,8 @@ theorem powMixCalibrator_ofReal {x : ℝ} (hx0 : 0 < x) (hx1 : x < 1) :
   have h_int : ∫ κ in (0 : ℝ)..1, κ * x ^ (κ - 1) =
       (1 - x + x * Real.log x) / (x * Real.log x ^ 2) := by
     rw [intervalIntegral.integral_eq_sub_of_hasDerivAt
-      (fun κ _ ↦ Real.hasDerivAt_rpow_sub_one_mul hx0 hlog κ) (h_cont.intervalIntegrable _ _)]
+      (fun κ _ ↦ Real.hasDerivAt_const_rpow_sub_one_mul_div hx0 hlog κ)
+      (h_cont.intervalIntegrable _ _)]
     simp only [sub_self, Real.rpow_zero, one_mul, zero_sub, zero_mul, Real.rpow_neg_one]
     field_simp
     ring

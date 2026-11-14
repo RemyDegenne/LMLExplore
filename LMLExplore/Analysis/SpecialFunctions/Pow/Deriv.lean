@@ -16,7 +16,7 @@ A complement to `Mathlib/Analysis/SpecialFunctions/Pow/Deriv.lean`.
 
 ## Main statements
 
-* `Real.hasDerivAt_rpow_sub_one_mul`: for `x > 0` with `log x ≠ 0`, the function
+* `Real.hasDerivAt_const_rpow_sub_one_mul_div`: for `x > 0` with `log x ≠ 0`, the function
   `κ ↦ x ^ (κ - 1) (κ log x - 1) / (log x) ^ 2` is an antiderivative of `κ ↦ κ x ^ (κ - 1)`.
 -/
 
@@ -25,7 +25,7 @@ public section
 namespace Real
 
 /-- An antiderivative of `κ ↦ κ x ^ (κ - 1)`, for `x > 0` with `log x ≠ 0`. -/
-theorem hasDerivAt_rpow_sub_one_mul {x : ℝ} (hx : 0 < x) (hlog : log x ≠ 0) (κ : ℝ) :
+theorem hasDerivAt_const_rpow_sub_one_mul_div {x : ℝ} (hx : 0 < x) (hlog : log x ≠ 0) (κ : ℝ) :
     HasDerivAt (fun κ ↦ x ^ (κ - 1) * (κ * log x - 1) / log x ^ 2) (κ * x ^ (κ - 1)) κ := by
   have h_pow : HasDerivAt (fun κ ↦ x ^ (κ - 1)) (x ^ (κ - 1) * log x) κ :=
     HasDerivAt.comp_sub_const κ 1 (hasStrictDerivAt_const_rpow hx (κ - 1)).hasDerivAt
