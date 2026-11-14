@@ -5,23 +5,28 @@ Authors: LMLExplore contributors
 -/
 module
 
+public import Mathlib.MeasureTheory.Measure.Prod
 public import Mathlib.Probability.Process.Adapted
 
 /-!
-# Adapted products
+# Adapted products and mixtures
 
 A product `M₀ * ∏ k < n, F k` is adapted to a filtration `ℱ` indexed by `ℕ` when `M₀` is
 `ℱ 0`-measurable and each factor `F k` is `ℱ (k + 1)`-measurable. Such products are the wealth
-processes of a gambler who reinvests at every round.
+processes of a gambler who reinvests at every round. A mixture `∫⁻ θ, M θ i ω ∂π` of a family of
+`ℝ≥0∞`-valued processes over an s-finite measure is adapted when the family is jointly measurable
+in `(θ, ω)` for `ℱ i` at every time `i`.
 
 ## Main statements
 
 * `MeasureTheory.adapted_mul_prod_range`: the process `n ↦ M₀ * ∏ k < n, F k` is adapted.
+* `MeasureTheory.adapted_lintegral`: the mixture `i ↦ ∫⁻ θ, M θ i · ∂π` is adapted.
 -/
 
 public section
 
 open Finset
+open scoped ENNReal
 
 namespace MeasureTheory
 
@@ -35,5 +40,15 @@ theorem adapted_mul_prod_range {M₀ : Ω → β} (hM₀ : Measurable[ℱ 0] M�
     Adapted ℱ (fun n ω ↦ M₀ ω * ∏ k ∈ range n, F k ω) := fun n ↦
   (hM₀.mono (ℱ.mono n.zero_le) le_rfl).mul <| Finset.measurable_fun_prod _ fun k hk ↦
     (hF k).mono (ℱ.mono (mem_range.1 hk)) le_rfl
+
+/-- The mixture `i ↦ ∫⁻ θ, M θ i · ∂π` over an s-finite measure `π` of a family of
+`ℝ≥0∞`-valued processes is adapted when, at every time `i`, the family is jointly measurable in
+`(θ, ω)` for the product of the σ-algebra of `Θ` and `f i`. -/
+theorem adapted_lintegral {ι Θ : Type*} [Preorder ι] {mΘ : MeasurableSpace Θ} {π : Measure Θ}
+    [SFinite π] {f : Filtration ι mΩ} {M : Θ → ι → Ω → ℝ≥0∞}
+    (hM : ∀ i, Measurable[mΘ.prod (f i)] fun p : Θ × Ω ↦ M p.1 i p.2) :
+    Adapted f (fun i ω ↦ ∫⁻ θ, M θ i ω ∂π) := fun i ↦
+  -- the measurable space on `Ω` is `f i`, not the ambient `mΩ`, hence the explicit instances
+  @Measurable.lintegral_prod_left' Θ Ω mΘ (f i) π _ _ (hM i)
 
 end MeasureTheory
