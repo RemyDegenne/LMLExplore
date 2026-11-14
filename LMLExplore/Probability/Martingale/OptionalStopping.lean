@@ -6,6 +6,7 @@ Authors: LMLExplore contributors
 module
 
 public import LMLExplore.EValues.TestSupermartingale
+public import LMLExplore.Probability.Process.Stopping
 public import LMLExplore.Probability.Process.StoppedValue
 public import Mathlib.Probability.Martingale.Convergence
 
@@ -141,9 +142,9 @@ theorem setLIntegral_stoppedValueLimsup_le_of_le_const (hM : IsENNSupermartingal
       rw [← inter_assoc]
       exact hsk.inter (hτ.measurableSet_natCast_lt k)
     have hg_succ : EqOn (g (k + 1)) (M (k + 1)) (s ∩ A) := fun ω hω ↦
-      stoppedValueLimsup_of_eq_coe (max_min_succ_of_le_of_lt hω.2.1 hω.2.2).1
+      stoppedValueLimsup_of_eq_natCast (max_min_succ_of_le_of_lt hω.2.1 hω.2.2).1
     have hg : EqOn (g k) (M k) (s ∩ A) := fun ω hω ↦
-      stoppedValueLimsup_of_eq_coe (max_min_succ_of_le_of_lt hω.2.1 hω.2.2).2
+      stoppedValueLimsup_of_eq_natCast (max_min_succ_of_le_of_lt hω.2.1 hω.2.2).2
     have hg_diff : EqOn (g (k + 1)) (g k) (s \ A) := fun ω hω ↦ by
       exact stoppedValueLimsup_congr (max_min_succ_eq hω.2)
     rw [← lintegral_inter_add_sdiff _ s hA, ← lintegral_inter_add_sdiff (g k) s hA,
