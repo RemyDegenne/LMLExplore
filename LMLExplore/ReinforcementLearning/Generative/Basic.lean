@@ -109,6 +109,12 @@ lemma empirical_congr (M : MDP 𝓢 𝓐 𝓡) (N : ℕ) [NeZero N] {ω ω' : �
   MDP.ext (by rw [empirical_P, empirical_P, empiricalKernel_congr h])
     (by rw [empirical_R, empirical_R])
 
+/-- For `γ = 0`, the value of a stationary policy in the empirical MDP is its value in `M`: both
+are its reward. -/
+lemma value_empirical_zero (M : MDP 𝓢 𝓐 ℝ) (N : ℕ) [NeZero N] (ω : ℕ → 𝓢 × 𝓐 → 𝓢)
+    (π : Kernel 𝓢 𝓐) [IsSFiniteKernel π] : (M.empirical N ω).value 0 π = M.value 0 π :=
+  funext fun s ↦ by rw [value_zero, value_zero, policyReward_def, empirical_R, policyReward_def]
+
 /-- For finite state and action spaces, every function of the empirical MDP is a measurable
 function of the array of samples: the empirical MDP only depends on the finitely many samples
 `ω i p`, `i < N`, which take finitely many values. -/

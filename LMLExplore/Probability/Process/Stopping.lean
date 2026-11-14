@@ -9,7 +9,7 @@ public import Mathlib.MeasureTheory.MeasurableSpace.Instances
 public import Mathlib.Probability.Process.Stopping
 
 /-!
-# Stopping times valued in `WithTop ℕ`
+# Stopping times valued in `WithTop ℕ` and stopped adapted processes
 
 A stopping time of a filtration indexed by `ℕ` takes values in `WithTop ℕ`, which Mathlib equips
 with its Borel σ-algebra, and `IsStoppingTime.measurable'` is measurability for that σ-algebra.
@@ -17,6 +17,10 @@ The same type seen as `ℕ∞` carries the discrete σ-algebra `⊤`; the two in
 syntactically equal. This file states measurability of such a stopping time for the discrete
 σ-algebra of `ℕ∞`. It also restates Mathlib's stopping-time API for `WithTop ℕ`-valued times at
 the cast `(n : WithTop ℕ)` of a natural number.
+
+A process that is adapted, in the sense of measurability, to a filtration indexed by a discrete
+order stays adapted when it is stopped at a stopping time; Mathlib states this for strongly adapted
+processes.
 
 ## Main statements
 
@@ -26,9 +30,12 @@ the cast `(n : WithTop ℕ)` of a natural number.
   `MeasureTheory.IsStoppingTime.measurableSet_natCast_lt`, `MeasureTheory.isStoppingTime_natCast`,
   `MeasureTheory.IsStoppingTime.min_natCast`: Mathlib's stopping-time API for `WithTop ℕ`-valued
   times, stated at the cast `(n : WithTop ℕ)` rather than the coercion `WithTop.some n`.
+* `MeasureTheory.Adapted.stoppedProcess_of_discrete`: a stopped adapted process is adapted.
 -/
 
 public section
+
+open TopologicalSpace
 
 namespace MeasureTheory.IsStoppingTime
 
@@ -47,6 +54,19 @@ end MeasureTheory.IsStoppingTime
 
 namespace MeasureTheory
 
+variable {Ω : Type*} {mΩ : MeasurableSpace Ω}
+
+/-- If the indexing order has the discrete topology, then the stopped process of an adapted
+process with values in a second-countable pseudo-metrizable Borel space is adapted. This is the
+measurable form of Mathlib's `StronglyAdapted.stoppedProcess_of_discrete`. -/
+theorem Adapted.stoppedProcess_of_discrete {ι γ : Type*} [Nonempty ι] [LinearOrder ι]
+    [TopologicalSpace ι] [SecondCountableTopology ι] [OrderTopology ι] [MeasurableSpace ι]
+    [BorelSpace ι] [DiscreteTopology ι] [TopologicalSpace γ] [PseudoMetrizableSpace γ]
+    [SecondCountableTopology γ] [MeasurableSpace γ] [BorelSpace γ] {f : Filtration ι mΩ}
+    {u : ι → Ω → γ} (hu : Adapted f u) {τ : Ω → WithTop ι} (hτ : IsStoppingTime f τ) :
+    Adapted f (stoppedProcess u τ) :=
+  (hu.stronglyAdapted.stoppedProcess_of_discrete hτ).adapted
+
 /-! ### Stopping times in `WithTop ℕ` at the cast of a natural number
 
 Mathlib's stopping-time API is stated at the coercion `WithTop.some n`, while statements about
@@ -55,7 +75,7 @@ by `Nat.cast_withTop`. -/
 
 section NatCast
 
-variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {ℱ : Filtration ℕ mΩ} {τ : Ω → WithTop ℕ}
+variable {ℱ : Filtration ℕ mΩ} {τ : Ω → WithTop ℕ}
 
 /-- For a stopping time with values in `WithTop ℕ`, `{ω | τ ω ≤ n}` is `ℱ n`-measurable, at the
 cast `(n : WithTop ℕ)`. -/

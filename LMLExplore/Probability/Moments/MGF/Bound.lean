@@ -65,6 +65,8 @@ weights of an exponential supermartingale.
   `LMLExplore.hasMGFBound_iff_hasSubexponentialMGF`).
 * `LMLExplore.mgfDominatedOn_iff_hasMGFBound`: domination by `Y` on `Λ` is the bound by the
   cumulant generating function of `Y` on `Λ`.
+* `LMLExplore.hasCondMGFBound_cgf_of_ae_mgfDominatedOn`: domination by `Y` on `Λ` under almost
+  every conditional law gives the conditional bound by the cumulant generating function of `Y`.
 * `ProbabilityTheory.HasCondSubgaussianMGF.hasCondMGFBound_cgf_gaussianReal`: if `X - a` is
   conditionally `c`-sub-Gaussian, the moment generating function of `X` is conditionally bounded
   by that of the Gaussian law of mean `a` and variance `c`.
@@ -416,6 +418,31 @@ lemma _root_.ProbabilityTheory.HasSubgaussianMGF.mgfDominatedOn_gaussianReal {a 
   ring
 
 end Unconditional
+
+section Dominated
+
+variable {Ω Ω' : Type*} {m mΩ : MeasurableSpace Ω} {hm : m ≤ mΩ} [StandardBorelSpace Ω]
+  {mΩ' : MeasurableSpace Ω'} {μ : Measure Ω} [IsFiniteMeasure μ] {X : Ω → ℝ} {Λ : Set ℝ}
+  {Q : Measure Ω'} [NeZero Q] {Y : Ω' → ℝ}
+
+/-- **Domination under the conditional expectation kernel.** If `exp (t * X)` is `μ`-integrable
+for every `t ∈ Λ` at which `exp (t * Y)` is `Q`-integrable, and for almost every `ω'`, `X` under
+the conditional expectation kernel at `ω'` is dominated by `Y` under `Q` on `Λ`, then the
+conditional moment generating function of `X` given `m` is bounded by `exp (cgf Y Q)` on these
+parameters. -/
+lemma hasCondMGFBound_cgf_of_ae_mgfDominatedOn
+    (hX : ∀ t ∈ Λ ∩ integrableExpSet Y Q, Integrable (fun ω ↦ exp (t * X ω)) μ)
+    (h : ∀ᵐ ω' ∂(μ.trim hm), MGFDominatedOn X (condExpKernel μ m ω') Y Q Λ) :
+    HasCondMGFBound m hm X (cgf Y Q) (Λ ∩ integrableExpSet Y Q) μ := by
+  refine hasCondMGFBound_iff_kernel.2 ⟨fun t ht ↦ ?_, ?_, ?_⟩
+  · rw [condExpKernel_comp_trim hm]
+    exact hX t ht
+  · filter_upwards [h] with ω' h t ht
+    exact (mgfDominatedOn_iff_hasMGFBound.1 h).integrable_exp_mul ht
+  · filter_upwards [h] with ω' h t ht
+    exact (mgfDominatedOn_iff_hasMGFBound.1 h).mgf_le ht
+
+end Dominated
 
 section Indep
 

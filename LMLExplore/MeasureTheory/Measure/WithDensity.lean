@@ -27,10 +27,14 @@ conditionally bounded increment.
 * `MeasureTheory.lintegral_mul_le_lintegral_mul_of_forall_setLIntegral_le`,
   `MeasureTheory.lintegral_mul_eq_lintegral_mul_of_forall_setLIntegral_eq`: they extend to
   `m`-measurable weights.
+* `MeasureTheory.setLIntegral_mul_le_setLIntegral_mul_of_forall_setLIntegral_le`,
+  `MeasureTheory.setLIntegral_mul_eq_setLIntegral_mul_of_forall_setLIntegral_eq`: the same over an
+  `m`-measurable set.
 -/
 
 public section
 
+open Set
 open scoped ENNReal
 
 namespace MeasureTheory
@@ -86,5 +90,29 @@ theorem lintegral_mul_eq_lintegral_mul_of_forall_setLIntegral_eq (hm : m ≤ mΩ
   rw [lintegral_mul_eq_lintegral_trim_withDensity hm hf hY,
     lintegral_mul_eq_lintegral_trim_withDensity hm hg hY,
     (withDensity_trim_eq_withDensity_trim_iff hm).2 h]
+
+/-- If the set integrals of `f` are at most those of `g` over the `m`-measurable sets, then
+`∫⁻ ω in s, Y ω * f ω ∂μ ≤ ∫⁻ ω in s, Y ω * g ω ∂μ` for every `m`-measurable `Y : Ω → ℝ≥0∞` and
+`m`-measurable set `s`. -/
+theorem setLIntegral_mul_le_setLIntegral_mul_of_forall_setLIntegral_le (hm : m ≤ mΩ)
+    (hf : AEMeasurable f μ) (hg : AEMeasurable g μ)
+    (h : ∀ s, MeasurableSet[m] s → ∫⁻ ω in s, f ω ∂μ ≤ ∫⁻ ω in s, g ω ∂μ)
+    (hY : Measurable[m] Y) {s : Set Ω} (hs : MeasurableSet[m] s) :
+    ∫⁻ ω in s, Y ω * f ω ∂μ ≤ ∫⁻ ω in s, Y ω * g ω ∂μ := by
+  rw [← lintegral_indicator (hm s hs), ← lintegral_indicator (hm s hs)]
+  simp_rw [indicator_mul_left]
+  exact lintegral_mul_le_lintegral_mul_of_forall_setLIntegral_le hm hf hg h (hY.indicator hs)
+
+/-- If the set integrals of `f` and `g` agree over the `m`-measurable sets, then
+`∫⁻ ω in s, Y ω * f ω ∂μ = ∫⁻ ω in s, Y ω * g ω ∂μ` for every `m`-measurable `Y : Ω → ℝ≥0∞` and
+`m`-measurable set `s`. -/
+theorem setLIntegral_mul_eq_setLIntegral_mul_of_forall_setLIntegral_eq (hm : m ≤ mΩ)
+    (hf : AEMeasurable f μ) (hg : AEMeasurable g μ)
+    (h : ∀ s, MeasurableSet[m] s → ∫⁻ ω in s, f ω ∂μ = ∫⁻ ω in s, g ω ∂μ)
+    (hY : Measurable[m] Y) {s : Set Ω} (hs : MeasurableSet[m] s) :
+    ∫⁻ ω in s, Y ω * f ω ∂μ = ∫⁻ ω in s, Y ω * g ω ∂μ := by
+  rw [← lintegral_indicator (hm s hs), ← lintegral_indicator (hm s hs)]
+  simp_rw [indicator_mul_left]
+  exact lintegral_mul_eq_lintegral_mul_of_forall_setLIntegral_eq hm hf hg h (hY.indicator hs)
 
 end MeasureTheory
