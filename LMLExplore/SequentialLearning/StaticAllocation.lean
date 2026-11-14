@@ -215,11 +215,9 @@ theorem exists_eventually_le_streamMeasure_forall_mean_mem
         (fun a ↦ (∑ i ∈ range (n a), ω i a) / (n a : ℝ)) ∈ U} := by
   obtain ⟨δ, hδ, hδU⟩ := Metric.mem_nhds_iff.1 hU
   -- A closed ball of positive probability for each arm.
-  have hL (a : α) : ∃ L : ℕ, ν a (Metric.closedBall (x a) L) ≠ 0 := by
-    by_contra! h
-    have h_null := measure_iUnion_null (μ := ν a) h
-    rw [Metric.iUnion_closedBall_nat, measure_univ] at h_null
-    exact one_ne_zero h_null
+  have hL (a : α) : ∃ L : ℕ, ν a (Metric.closedBall (x a) L) ≠ 0 :=
+    (exists_pos_measure_of_cover (Metric.iUnion_closedBall_nat (x a))
+      (IsProbabilityMeasure.ne_zero _)).imp fun _ h ↦ h.ne'
   choose L hL using hL
   -- The first `n₀ T a = ⌈T w a - k⌉₊` entries of the row of `a`, a number within `2 k + 1` of
   -- `T w a`, have a mean close to `x a` with probability at least `exp (-(T r))` jointly.
