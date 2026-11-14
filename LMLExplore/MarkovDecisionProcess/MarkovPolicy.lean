@@ -34,7 +34,8 @@ policy `π`, these marginals are given by powers of two kernels:
 Integrating a function against `M.stateKernel π s` averages over the actions `a` of `π s` its
 integral against `M.P (s, a)` (`integral_stateKernel`, and `integral_stateKernel_eq_sum` for
 finitely many actions); integrating a function against `M.saKernel π p` integrates over `M.P p`
-its average over the actions of `π` (`integral_saKernel`).
+its average over the actions of `π` (`integral_saKernel`). The state kernel of a deterministic
+stationary policy `d` is `s ↦ M.P (s, d s)` (`stateKernel_deterministic_apply`).
 
 The deterministic stationary policies `policyAlg π hπ` are Markov policies
 (`policyAlg_eq_markov`).
@@ -122,6 +123,14 @@ lemma stateKernel_comp_eq_comp_compProd (μ : Measure 𝓢) [SFinite μ] :
 
 lemma stateKernel_apply (s : 𝓢) : M.stateKernel π s = M.P ∘ₘ (Measure.dirac s ⊗ₘ π) := by
   rw [← stateKernel_comp_eq_comp_compProd, Measure.dirac_bind (Kernel.measurable _)]
+
+/-- The state kernel of the deterministic stationary policy `d` draws the next state from
+`M.P (s, d s)`. -/
+@[simp]
+lemma stateKernel_deterministic_apply {d : 𝓢 → 𝓐} (hd : Measurable d) (s : 𝓢) :
+    M.stateKernel (Kernel.deterministic d hd) s = M.P (s, d s) := by
+  rw [stateKernel_def, Kernel.comp_apply, Kernel.prod_apply, Kernel.id_apply,
+    Kernel.deterministic_apply, Measure.dirac_prod_dirac, Measure.dirac_bind M.P.measurable]
 
 /-- Composing a measure `ν` on state-action pairs with the state-action kernel of `π` draws a
 next state from `M.P ∘ₘ ν`, then an action from `π`. -/
