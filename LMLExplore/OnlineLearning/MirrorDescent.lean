@@ -40,6 +40,8 @@ of losses, in particular for losses chosen adaptively from the past plays.
 
 ## Main statements
 
+* `isMirrorDescentStep_zero_iff`: a step for the zero loss is a Bregman projection of the
+  current play, whatever the learning rate.
 * `isMirrorDescentStep_iff_isMinOn_bregDiv`: the second stage of the two-step form [LS, (28.8)].
   If `G = F' - η y`, the steps from `a` are the Bregman projections onto `K` of any point `b`
   with derivative `G`.
@@ -110,6 +112,13 @@ structure IsMirrorDescentStep (K : Set E) (F : E → ℝ) (η : ℝ) (y : E →L
   mem : x ∈ K
   /-- The step minimizes the mirror descent objective over `K`. -/
   isMinOn : IsMinOn (fun b ↦ η * y b + bregDiv F b a F') K x
+
+/-- A mirror descent step for the zero loss is a Bregman projection of `a` onto `K`, whatever the
+learning rate: a point of `K` minimizing `b ↦ D_F(b, a)` over `K`. -/
+@[simp]
+theorem isMirrorDescentStep_zero_iff {a x : E} {F' : E →L[ℝ] ℝ} :
+    IsMirrorDescentStep K F η 0 a F' x ↔ x ∈ K ∧ IsMinOn (fun b ↦ bregDiv F b a F') K x :=
+  ⟨fun h ↦ ⟨h.mem, by simpa using h.isMinOn⟩, fun ⟨hx, h⟩ ↦ ⟨hx, by simpa using h⟩⟩
 
 section TwoStep
 
