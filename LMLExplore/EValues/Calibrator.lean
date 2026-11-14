@@ -22,11 +22,12 @@ import TauCeti.Analysis.SpecialFunctions.Pow.Integral
 
 A p-to-e calibrator is a way of turning p-variables into e-variables: an antitone
 `f : ℝ≥0∞ → ℝ≥0∞`, zero on `(1, ∞]`, such that `f ∘ p` is an e-variable for every p-variable `p`
-of every null hypothesis on every measurable space. By [RW, Proposition 2.5], these are exactly the
-antitone functions vanishing on `(1, ∞]` with `∫₀¹ f ≤ 1`, and this characterization is taken here
-as the definition. The definition is justified by `IsPToECalibrator.isEVar_comp` and its converse
-`isPToECalibrator_iff_isEVar`, whose proof rests on the fact that a p-variable is stochastically
-larger than the uniform law on `[0, 1]` (`IsPVar.lintegral_comp_le`).
+of every null hypothesis of probability measures on every measurable space. By
+[RW, Proposition 2.5], these are exactly the antitone functions vanishing on `(1, ∞]` with
+`∫₀¹ f ≤ 1`, and this characterization is taken here as the definition. The definition is
+justified by `IsPToECalibrator.isEVar_comp` and its converse `isPToECalibrator_iff_isEVar`, whose
+proof rests on the fact that a p-variable is stochastically larger than the uniform law on
+`[0, 1]` (`IsPVar.lintegral_comp_le`).
 
 A calibrator is admissible when no other calibrator dominates it. The admissible calibrators are
 the upper semicontinuous calibrators with `f 0 = ∞` and `∫₀¹ f = 1` [RW, Proposition 2.5].
@@ -36,14 +37,13 @@ the upper semicontinuous calibrators with `f 0 = ∞` and `∫₀¹ f = 1` [RW, 
 * `ProbabilityTheory.IsPToECalibrator f`: `f` is a p-to-e calibrator.
 * `ProbabilityTheory.IsAdmissiblePToECalibrator f`: `f` is a calibrator that no other calibrator
   strictly dominates.
-* `ProbabilityTheory.powCalibrator κ`: the calibrator `x ↦ κ x ^ (κ - 1)` on `[0, 1]`.
+* `ProbabilityTheory.powCalibrator κ`: the function `x ↦ κ x ^ (κ - 1)` on `[0, 1]`, zero on
+  `(1, ∞]`; it is a calibrator for `0 < κ ≤ 1`.
 * `ProbabilityTheory.powMixCalibrator`: the mixture of the calibrators `powCalibrator κ` over
   `κ` uniform on `(0, 1)`.
 
 ## Main statements
 
-* `ProbabilityTheory.IsPVar.lintegral_comp_le`: under a measure of mass at most `1`, the integral
-  of an antitone function of a p-variable is at most its integral against the uniform law.
 * `ProbabilityTheory.IsPToECalibrator.isEVar_comp`: a calibrator turns every p-variable into an
   e-variable [VW21, Proposition 2.1], and `ProbabilityTheory.isPToECalibrator_iff_isEVar`: an
   antitone function vanishing on `(1, ∞]` is a calibrator as soon as it turns the identity of
@@ -55,8 +55,9 @@ the upper semicontinuous calibrators with `f 0 = ∞` and `∫₀¹ f = 1` [RW, 
   rescaling `x ↦ a f (a x)`, `a ≥ 1`, of a calibrator is a calibrator [RW, Proposition 2.6].
 * `ProbabilityTheory.isPToECalibrator_lintegral`: mixtures of calibrators are calibrators.
 * `ProbabilityTheory.isAdmissiblePToECalibrator_powCalibrator` and
-  `ProbabilityTheory.powMixCalibrator_ofReal`: the power calibrators are admissible, and their
-  mixture is `(1 - x + x log x) / (x (log x) ^ 2)` on `(0, 1)` [RW, (2.1)–(2.2)].
+  `ProbabilityTheory.powMixCalibrator_ofReal`: the power calibrators `powCalibrator κ` are
+  admissible for `0 < κ < 1`, and their mixture is `(1 - x + x log x) / (x (log x) ^ 2)` on
+  `(0, 1)` [RW, (2.1)–(2.2)].
 
 ## References
 
@@ -76,63 +77,6 @@ namespace ProbabilityTheory
 
 variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {S : Set (Measure Ω)} {p : Ω → ℝ≥0∞}
   {P : Measure Ω} {f g : ℝ≥0∞ → ℝ≥0∞}
-
-/-! ### P-variables are stochastically larger than the uniform law -/
-
-/-- The uniform law on `[0, 1]` gives mass `min a 1` to `{x | x < a}`. -/
-private lemma volume_restrict_Icc_ofReal_lt (a : ℝ≥0∞) :
-    volume.restrict (Icc (0 : ℝ) 1) {x | ENNReal.ofReal x < a} = min a 1 := by
-  rw [Measure.restrict_apply (measurableSet_lt ENNReal.measurable_ofReal measurable_const)]
-  rcases le_or_gt a 1 with ha | ha
-  · have ha' : a ≠ ∞ := ne_top_of_le_ne_top ENNReal.one_ne_top ha
-    have h_set : {x : ℝ | ENNReal.ofReal x < a} ∩ Icc 0 1 = Ico 0 a.toReal := by
-      ext x
-      simp only [mem_inter_iff, mem_ofPred_eq, mem_Icc, mem_Ico]
-      constructor
-      · rintro ⟨h, h0, -⟩
-        exact ⟨h0, (ENNReal.ofReal_lt_iff_lt_toReal h0 ha').1 h⟩
-      · rintro ⟨h0, h⟩
-        refine ⟨(ENNReal.ofReal_lt_iff_lt_toReal h0 ha').2 h, h0, h.le.trans ?_⟩
-        exact ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using ha)
-    rw [h_set, Real.volume_Ico, sub_zero, ENNReal.ofReal_toReal ha', min_eq_left ha]
-  · have h_set : {x : ℝ | ENNReal.ofReal x < a} ∩ Icc 0 1 = Icc 0 1 :=
-      inter_eq_right.2 fun x hx ↦ (ENNReal.ofReal_le_one.2 hx.2).trans_lt ha
-    simp [h_set, min_eq_right ha.le]
-
-/-- Under a measure of total mass at most `1`, a p-variable charges every lower set of `ℝ≥0∞` at
-most as much as a uniform variable on `[0, 1]` does. -/
-theorem IsPVar.measure_preimage_le (hp : IsPVar p S) (hP : P ∈ S) (hP1 : P univ ≤ 1)
-    {L : Set ℝ≥0∞} (hL : IsLowerSet L) :
-    P (p ⁻¹' L) ≤ volume.restrict (Icc (0 : ℝ) 1) (ENNReal.ofReal ⁻¹' L) := by
-  have h_sub : Iio (sSup L) ⊆ L := fun x hx ↦ by
-    obtain ⟨y, hyL, hxy⟩ := lt_sSup_iff.1 (mem_Iio.1 hx)
-    exact hL hxy.le hyL
-  calc P (p ⁻¹' L) ≤ min (sSup L) 1 := by
-        refine le_min ?_ ((measure_mono (subset_univ _)).trans hP1)
-        have h_sub' : p ⁻¹' L ⊆ {ω | p ω ≤ sSup L} := fun ω (hω : p ω ∈ L) ↦ le_sSup hω
-        exact (measure_mono h_sub').trans (hp.measure_le_le P hP _)
-    _ = volume.restrict (Icc (0 : ℝ) 1) {x | ENNReal.ofReal x < sSup L} :=
-        (volume_restrict_Icc_ofReal_lt _).symm
-    _ ≤ _ := measure_mono fun _ hx ↦ h_sub hx
-
-/-- **A p-variable is stochastically larger than the uniform law**: under a measure of total mass
-at most `1`, the integral of an antitone function of a p-variable is at most its integral against
-the uniform law on `[0, 1]`. -/
-theorem IsPVar.lintegral_comp_le (hp : IsPVar p S) (hP : P ∈ S) (hP1 : P univ ≤ 1)
-    (hf : Antitone f) :
-    ∫⁻ ω, f (p ω) ∂P ≤ ∫⁻ x in Icc (0 : ℝ) 1, f (ENNReal.ofReal x) := by
-  -- the layer cake formula on both sides reduces the claim to the superlevel sets of `f`, which
-  -- are lower sets since `f` is antitone
-  have h_cake_P := TauCeti.lintegral_rpow_eq_lintegral_meas_ofReal_lt_mul P
-    (hf.measurable.comp hp.measurable).aemeasurable one_pos
-  have h_cake_U := TauCeti.lintegral_rpow_eq_lintegral_meas_ofReal_lt_mul
-    (volume.restrict (Icc (0 : ℝ) 1))
-    (hf.measurable.comp ENNReal.measurable_ofReal).aemeasurable one_pos
-  simp only [ENNReal.rpow_one, ENNReal.ofReal_one, one_mul, sub_self, Real.rpow_zero,
-    mul_one, Function.comp_apply] at h_cake_P h_cake_U
-  rw [h_cake_P, h_cake_U]
-  exact lintegral_mono fun t ↦ hp.measure_preimage_le hP hP1
-    (L := {y | ENNReal.ofReal t < f y}) fun _ _ hxy hy ↦ hy.trans_le (hf hxy)
 
 /-! ### Calibrators -/
 
@@ -169,6 +113,10 @@ theorem isPToECalibrator_iff_isEVar :
   exact hf.isEVar_comp (by simp only [mem_singleton_iff, forall_eq]; infer_instance)
     isExactPVar_ofReal_volume.toIsPVar
 
+/-- An element of `ℝ≥0∞` at most `1` has real part at most `1`. -/
+private lemma toReal_le_one_of_le_one {x : ℝ≥0∞} (hx : x ≤ 1) : x.toReal ≤ 1 :=
+  ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using hx)
+
 /-- A calibrator is at most `x ↦ x⁻¹`: `x f x ≤ ∫₀ˣ f ≤ 1`. -/
 theorem IsPToECalibrator.le_inv (hf : IsPToECalibrator f) (x : ℝ≥0∞) : f x ≤ x⁻¹ := by
   rcases lt_or_ge 1 x with hx | hx
@@ -181,8 +129,7 @@ theorem IsPToECalibrator.le_inv (hf : IsPToECalibrator f) (x : ℝ≥0∞) : f x
         setLIntegral_mono (hf.measurable.comp ENNReal.measurable_ofReal) fun u hu ↦
           hf.antitone (ENNReal.ofReal_le_of_le_toReal hu.2)
     _ ≤ ∫⁻ u in Icc (0 : ℝ) 1, f (ENNReal.ofReal u) :=
-        lintegral_mono_set (Icc_subset_Icc_right
-          (ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using hx)))
+        lintegral_mono_set (Icc_subset_Icc_right (toReal_le_one_of_le_one hx))
     _ ≤ 1 := hf.lintegral_le_one
 
 /-! ### Rescaling and mixtures -/
@@ -351,7 +298,7 @@ private lemma eq_of_le_of_upperSemicontinuous
     rw [Measure.restrict_apply measurableSet_Ioo,
       inter_eq_left.2 fun v (hv : v ∈ Ioo l.toReal x.toReal) ↦ mem_Icc.2
         ⟨ENNReal.toReal_nonneg.trans hv.1.le, hv.2.le.trans
-          (ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using hx1))⟩, Real.volume_Ioo]
+          (toReal_le_one_of_le_one hx1)⟩, Real.volume_Ioo]
     exact ENNReal.ofReal_pos.2 (sub_pos.2 ((ENNReal.toReal_lt_toReal hl_top hx_top).2 hlx))
   refine h_pos.ne' (measure_mono_null (fun v hv ↦ ?_) (ae_iff.1 h_ae))
   have hv0 : 0 ≤ v := ENNReal.toReal_nonneg.trans hv.1.le
@@ -392,8 +339,10 @@ theorem IsAdmissiblePToECalibrator.const_mul_comp_mul (hf : IsAdmissiblePToECali
 
 /-! ### Power calibrators -/
 
-/-- The **power calibrator** `x ↦ κ x ^ (κ - 1)` on `[0, 1]`, zero on `(1, ∞]` [RW, (2.1)]. For
-`κ < 1` its value at `0` is `0 ^ (κ - 1) = ∞`. -/
+/-- The **power calibrator** `x ↦ κ x ^ (κ - 1)` on `[0, 1]`, zero on `(1, ∞]` [RW, (2.1)]. It is
+defined for every real `κ` and is a calibrator for `0 < κ ≤ 1` (`isPToECalibrator_powCalibrator`);
+for `κ ≤ 0` it is identically `0`, since `ENNReal.ofReal κ = 0`. For `0 < κ < 1` its value at `0`
+is `κ 0 ^ (κ - 1) = ∞`. -/
 noncomputable def powCalibrator (κ : ℝ) (x : ℝ≥0∞) : ℝ≥0∞ :=
   if x ≤ 1 then ENNReal.ofReal κ * x ^ (κ - 1) else 0
 
@@ -410,7 +359,7 @@ theorem powCalibrator_of_le_one (κ : ℝ) {x : ℝ≥0∞} (hx : x ≤ 1) :
 theorem powCalibrator_of_one_lt (κ : ℝ) {x : ℝ≥0∞} (hx : 1 < x) : powCalibrator κ x = 0 := by
   simp [powCalibrator_def, not_le.2 hx]
 
-theorem measurable_powCalibrator : Measurable (Function.uncurry powCalibrator) := by
+theorem measurable_uncurry_powCalibrator : Measurable (Function.uncurry powCalibrator) := by
   simp only [Function.uncurry_def, powCalibrator_def]
   refine Measurable.ite (measurableSet_le measurable_snd measurable_const) ?_ measurable_const
   exact (ENNReal.measurable_ofReal.comp measurable_fst).mul
@@ -439,29 +388,32 @@ theorem isPToECalibrator_powCalibrator {κ : ℝ} (hκ0 : 0 < κ) (hκ1 : κ ≤
   eq_zero_of_one_lt _ hx := powCalibrator_of_one_lt _ hx
   lintegral_le_one := (setLIntegral_powCalibrator hκ0).le
 
+/-- The power calibrator `powCalibrator κ` is upper semicontinuous, for every real `κ`. -/
+theorem upperSemicontinuous_powCalibrator (κ : ℝ) : UpperSemicontinuous (powCalibrator κ) := by
+  -- below `1`, `powCalibrator κ` is dominated by a continuous function that it equals there
+  intro x
+  have h_cont : Continuous fun y : ℝ≥0∞ ↦ ENNReal.ofReal κ * y ^ (κ - 1) :=
+    (ENNReal.continuous_const_mul ENNReal.ofReal_ne_top).comp ENNReal.continuous_rpow_const
+  rcases le_or_gt x 1 with hx | hx
+  · intro c hc
+    rw [powCalibrator_of_le_one _ hx] at hc
+    filter_upwards [h_cont.continuousAt.eventually (gt_mem_nhds hc)] with y hy
+    rcases le_or_gt y 1 with hy1 | hy1
+    · rwa [powCalibrator_of_le_one _ hy1]
+    · rw [powCalibrator_of_one_lt _ hy1]
+      exact zero_le.trans_lt hy
+  · intro c hc
+    rw [powCalibrator_of_one_lt _ hx] at hc
+    filter_upwards [Ioi_mem_nhds hx] with y hy
+    rwa [powCalibrator_of_one_lt _ hy]
+
 /-- The power calibrators `x ↦ κ x ^ (κ - 1)`, `0 < κ < 1`, are admissible [RW, (2.1)]. -/
 theorem isAdmissiblePToECalibrator_powCalibrator {κ : ℝ} (hκ0 : 0 < κ) (hκ1 : κ < 1) :
     IsAdmissiblePToECalibrator (powCalibrator κ) := by
-  refine isAdmissiblePToECalibrator_iff.2 ⟨isPToECalibrator_powCalibrator hκ0 hκ1.le, ?_, ?_,
-    setLIntegral_powCalibrator hκ0⟩
-  · -- below `1`, `powCalibrator κ` is dominated by a continuous function that it equals there
-    intro x
-    have h_cont : Continuous fun y : ℝ≥0∞ ↦ ENNReal.ofReal κ * y ^ (κ - 1) :=
-      (ENNReal.continuous_const_mul ENNReal.ofReal_ne_top).comp ENNReal.continuous_rpow_const
-    rcases le_or_gt x 1 with hx | hx
-    · intro c hc
-      rw [powCalibrator_of_le_one _ hx] at hc
-      filter_upwards [h_cont.continuousAt.eventually (gt_mem_nhds hc)] with y hy
-      rcases le_or_gt y 1 with hy1 | hy1
-      · rwa [powCalibrator_of_le_one _ hy1]
-      · rw [powCalibrator_of_one_lt _ hy1]
-        exact zero_le.trans_lt hy
-    · intro c hc
-      rw [powCalibrator_of_one_lt _ hx] at hc
-      filter_upwards [Ioi_mem_nhds hx] with y hy
-      rwa [powCalibrator_of_one_lt _ hy]
-  · rw [powCalibrator_of_le_one _ zero_le_one, ENNReal.zero_rpow_of_neg (by linarith),
-      ENNReal.mul_top (by simpa using hκ0)]
+  refine isAdmissiblePToECalibrator_iff.2 ⟨isPToECalibrator_powCalibrator hκ0 hκ1.le,
+    upperSemicontinuous_powCalibrator κ, ?_, setLIntegral_powCalibrator hκ0⟩
+  rw [powCalibrator_of_le_one _ zero_le_one, ENNReal.zero_rpow_of_neg (by linarith),
+    ENNReal.mul_top (by simpa using hκ0)]
 
 /-! ### The mixture of the power calibrators -/
 
@@ -479,7 +431,7 @@ theorem powMixCalibrator_def (x : ℝ≥0∞) :
 theorem isPToECalibrator_powMixCalibrator : IsPToECalibrator powMixCalibrator := by
   have : IsProbabilityMeasure (volume.restrict (Ioo (0 : ℝ) 1)) := ⟨by simp⟩
   simp_rw [funext powMixCalibrator_def]
-  refine isPToECalibrator_lintegral ?_ measurable_powCalibrator
+  refine isPToECalibrator_lintegral ?_ measurable_uncurry_powCalibrator
   filter_upwards [ae_restrict_mem measurableSet_Ioo] with κ hκ
   exact isPToECalibrator_powCalibrator hκ.1 hκ.2.le
 

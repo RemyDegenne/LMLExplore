@@ -11,10 +11,9 @@ public import Mathlib.Topology.Semicontinuity.Defs
 /-!
 # Semicontinuity of one-sided limits of antitone functions
 
-The left limit `Function.leftLim f` of an antitone function `f` is upper semicontinuous: it is
-the upper semicontinuous regularization of `f`, from which it differs only at the (countably
-many) discontinuities of `f`. Replacing a p-to-e calibrator by its left limit is how one shows that
-admissible calibrators are upper semicontinuous.
+The left limit `Function.leftLim f` of an antitone function `f` is upper semicontinuous, and
+it agrees with `f` wherever `f` is continuous. Replacing a p-to-e calibrator by its left limit is
+how one shows that admissible calibrators are upper semicontinuous.
 
 ## Main statements
 
