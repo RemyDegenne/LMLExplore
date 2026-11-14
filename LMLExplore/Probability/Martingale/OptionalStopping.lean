@@ -41,6 +41,8 @@ version for bounded stopping times, under integrability. Convergence is derived 
   stopping for bounded stopping times, for every `ℝ≥0∞`-valued supermartingale.
 * `ProbabilityTheory.IsENNSupermartingale.setLIntegral_stoppedValueLimsup_le`: optional stopping for
   arbitrary stopping times with values in `WithTop ℕ`.
+* `ProbabilityTheory.IsTestSupermartingale.lintegral_limsup_le_one`: the almost sure limit of a
+  test supermartingale has expectation at most `1`.
 * `ProbabilityTheory.IsTestSupermartingale.lintegral_stoppedValueLimsup_le_one`,
   `ProbabilityTheory.IsTestSupermartingale.isEVar_stoppedValueLimsup`: a test supermartingale has
   expectation at most `1` at every stopping time, where its value is an e-variable.
@@ -81,6 +83,29 @@ private lemma max_min_succ_eq {a b : WithTop ℕ} {k : ℕ} (h : ¬(a ≤ k ∧ 
     rw [max_eq_left ((min_le_right _ _).trans h'), max_eq_left ((min_le_right _ _).trans h.le)]
   · rw [not_lt] at h
     rw [min_eq_left (h.trans (by simp)), min_eq_left h]
+
+/-! Mathlib's stopping-time API is stated at the coercion `WithTop.some n`, while the statements
+here use the cast `(n : WithTop ℕ)`; the following helpers convert between them by
+`Nat.cast_withTop`. -/
+
+private lemma measurableSet_le_natCast (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
+    MeasurableSet[ℱ n] {ω | τ ω ≤ n} := by
+  rw [Nat.cast_withTop]
+  exact hτ n
+
+private lemma measurableSet_natCast_lt (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
+    MeasurableSet[ℱ n] {ω | (n : WithTop ℕ) < τ ω} := by
+  rw [Nat.cast_withTop]
+  exact hτ.measurableSet_gt n
+
+private lemma isStoppingTime_natCast (n : ℕ) : IsStoppingTime ℱ fun _ ↦ (n : WithTop ℕ) := by
+  rw [Nat.cast_withTop]
+  exact isStoppingTime_const ℱ n
+
+private lemma isStoppingTime_min_natCast (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
+    IsStoppingTime ℱ fun ω ↦ min (τ ω) n := by
+  rw [Nat.cast_withTop]
+  exact hτ.min_const n
 
 namespace IsENNSupermartingale
 
@@ -130,11 +155,14 @@ theorem setLIntegral_stoppedValueLimsup_le_of_le_const (hM : IsENNSupermartingal
   have hs' : MeasurableSet s := hσ.measurableSpace_le s hs
   have hstep (k : ℕ) : ∫⁻ ω in s, g (k + 1) ω ∂P ≤ ∫⁻ ω in s, g k ω ∂P := by
     set A := {ω | σ ω ≤ k} ∩ {ω | (k : WithTop ℕ) < τ ω}
-    have hAk : MeasurableSet[ℱ k] A := (hσ k).inter (hτ.measurableSet_gt k)
+    have hAk : MeasurableSet[ℱ k] A :=
+      (measurableSet_le_natCast hσ k).inter (measurableSet_natCast_lt hτ k)
     have hA : MeasurableSet A := ℱ.le k _ hAk
     have hsA : MeasurableSet[ℱ k] (s ∩ A) := by
+      have hsk := ((hσ.measurableSet s).1 hs).2 k
+      rw [← Nat.cast_withTop] at hsk
       rw [← inter_assoc]
-      exact (((hσ.measurableSet s).1 hs).2 k).inter (hτ.measurableSet_gt k)
+      exact hsk.inter (measurableSet_natCast_lt hτ k)
     have hg_succ : EqOn (g (k + 1)) (M (k + 1)) (s ∩ A) := fun ω hω ↦
       stoppedValueLimsup_of_eq_coe (max_min_succ_of_le_of_lt hω.2.1 hω.2.2).1
     have hg : EqOn (g k) (M k) (s ∩ A) := fun ω hω ↦
@@ -172,18 +200,22 @@ theorem setLIntegral_stoppedValueLimsup_le (hM : IsENNSupermartingale M ℱ S) (
   -- `N` tend to infinity with Fatou's lemma.
   set F : ℕ → Ω → ℝ≥0∞ := fun N ↦
     (s ∩ {ω | σ ω ≤ N}).indicator (stoppedValueLimsup M fun ω ↦ min (τ ω) N)
-  have hsN (N : ℕ) : MeasurableSet (s ∩ {ω | σ ω ≤ N}) := hs'.inter (ℱ.le N _ (hσ N))
+  have hsN (N : ℕ) : MeasurableSet (s ∩ {ω | σ ω ≤ N}) :=
+    hs'.inter (ℱ.le N _ (measurableSet_le_natCast hσ N))
   have hsub (N : ℕ) : s ∩ {ω | σ ω ≤ N} ⊆ s \ {ω | σ ω = ⊤} := fun _ hω ↦
     ⟨hω.1, ne_top_of_le_ne_top (WithTop.natCast_ne_top N) hω.2⟩
   have hF_meas (N : ℕ) : Measurable (F N) :=
-    (measurable_stoppedValueLimsup hM.measurable (hτ.min_const N).measurable').indicator (hsN N)
+    (measurable_stoppedValueLimsup hM.measurable
+      (isStoppingTime_min_natCast hτ N).measurable').indicator (hsN N)
   have hF_le (N : ℕ) :
       ∫⁻ ω, F N ω ∂P ≤ ∫⁻ ω in s \ {ω | σ ω = ⊤}, stoppedValueLimsup M σ ω ∂P := by
     rw [lintegral_indicator (hsN N)]
-    calc _ ≤ ∫⁻ ω in s ∩ {ω | σ ω ≤ N}, stoppedValueLimsup M (fun ω ↦ min (σ ω) N) ω ∂P :=
-          hM.setLIntegral_stoppedValueLimsup_le_of_le_const hP (hσ.min_const N) (hτ.min_const N)
-            (fun ω ↦ min_le_min_right _ (hστ ω)) (fun ω ↦ min_le_right _ _)
+    calc _ ≤ ∫⁻ ω in s ∩ {ω | σ ω ≤ N}, stoppedValueLimsup M (fun ω ↦ min (σ ω) N) ω ∂P := by
+          have h := hM.setLIntegral_stoppedValueLimsup_le_of_le_const hP (hσ.min_const N)
+            (hτ.min_const N) (fun ω ↦ min_le_min_right _ (hστ ω))
+            (fun ω ↦ (min_le_right _ _).trans_eq (Nat.cast_withTop N).symm)
             ((hσ.measurableSet_inter_le_const_iff s N).1 (hs.inter (hσ.measurableSet_le' N)))
+          rwa [← Nat.cast_withTop] at h
       _ = ∫⁻ ω in s ∩ {ω | σ ω ≤ N}, stoppedValueLimsup M σ ω ∂P :=
           setLIntegral_congr_fun (hsN N) fun ω hω ↦
             stoppedValueLimsup_congr (min_eq_left hω.2)
@@ -215,7 +247,7 @@ theorem lintegral_stoppedValueLimsup_le (hM : IsENNSupermartingale M ℱ S) (hP 
     [IsFiniteMeasure P] (h0 : ∫⁻ ω, M 0 ω ∂P ≠ ∞) (hτ : IsStoppingTime ℱ τ) :
     ∫⁻ ω, stoppedValueLimsup M τ ω ∂P ≤ ∫⁻ ω, M 0 ω ∂P := by
   have h := hM.setLIntegral_stoppedValueLimsup_le hP h0 (σ := fun _ ↦ ((0 : ℕ) : WithTop ℕ))
-    (isStoppingTime_const ℱ 0) hτ (fun _ ↦ bot_le) MeasurableSet.univ
+    (isStoppingTime_natCast 0) hτ (fun _ ↦ by simp) MeasurableSet.univ
   rwa [stoppedValueLimsup_const, Measure.restrict_univ] at h
 
 /-- The set integrals of the almost sure limit of an `ℝ≥0∞`-valued supermartingale with finite
@@ -224,10 +256,9 @@ initial expectation under a finite measure, over an `ℱ n`-measurable set, are 
 theorem setLIntegral_limsup_le (hM : IsENNSupermartingale M ℱ S) (hP : P ∈ S) [IsFiniteMeasure P]
     (h0 : ∫⁻ ω, M 0 ω ∂P ≠ ∞) {n : ℕ} (hs : MeasurableSet[ℱ n] s) :
     ∫⁻ ω in s, limsup (fun k ↦ M k ω) atTop ∂P ≤ ∫⁻ ω in s, M n ω ∂P := by
-  have hσ := isStoppingTime_const ℱ n
-  have h := hM.setLIntegral_stoppedValueLimsup_le hP h0 (σ := fun _ ↦ (n : WithTop ℕ))
-    (τ := fun _ ↦ ⊤) hσ (fun _ ↦ by simp) (fun _ ↦ le_top)
-    (by rwa [IsStoppingTime.measurableSpace_const])
+  have hσ : IsStoppingTime ℱ fun _ ↦ (n : WithTop ℕ) := isStoppingTime_natCast n
+  have h := hM.setLIntegral_stoppedValueLimsup_le hP h0 (τ := fun _ ↦ ⊤) hσ (fun _ ↦ by simp)
+    (fun _ ↦ le_top) (hσ.le_measurableSpace_of_const_le (fun _ ↦ (Nat.cast_withTop n).ge) s hs)
   rwa [stoppedValueLimsup_const, stoppedValueLimsup_top] at h
 
 /-- The expectation of the almost sure limit of an `ℝ≥0∞`-valued supermartingale with finite
@@ -254,6 +285,25 @@ theorem ae_limsup_lt_top (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) [Is
     ∀ᵐ ω ∂P, limsup (fun n ↦ M n ω) atTop < ∞ :=
   hM.toIsENNSupermartingale.ae_limsup_lt_top hP
     (hM.lintegral_zero_ne_top hP)
+
+/-- The set integrals of the almost sure limit of a test supermartingale, over an `ℱ n`-measurable
+set, are at most those of `M n`, under every finite member of the null. -/
+theorem setLIntegral_limsup_le (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) [IsFiniteMeasure P]
+    {n : ℕ} (hs : MeasurableSet[ℱ n] s) :
+    ∫⁻ ω in s, limsup (fun k ↦ M k ω) atTop ∂P ≤ ∫⁻ ω in s, M n ω ∂P :=
+  hM.toIsENNSupermartingale.setLIntegral_limsup_le hP (hM.lintegral_zero_ne_top hP) hs
+
+/-- The expectation of the almost sure limit of a test supermartingale is at most its initial
+expectation, under every finite member of the null. -/
+theorem lintegral_limsup_le (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S) [IsFiniteMeasure P] :
+    ∫⁻ ω, limsup (fun n ↦ M n ω) atTop ∂P ≤ ∫⁻ ω, M 0 ω ∂P :=
+  hM.toIsENNSupermartingale.lintegral_limsup_le hP (hM.lintegral_zero_ne_top hP)
+
+/-- The expectation of the almost sure limit of a test supermartingale is at most `1`, under every
+finite member of the null. -/
+theorem lintegral_limsup_le_one (hM : IsTestSupermartingale M ℱ S) (hP : P ∈ S)
+    [IsFiniteMeasure P] : ∫⁻ ω, limsup (fun n ↦ M n ω) atTop ∂P ≤ 1 :=
+  (hM.lintegral_limsup_le hP).trans (hM.lintegral_zero_le P hP)
 
 /-- **Optional stopping for test supermartingales.** For stopping times `σ ≤ τ` with values in
 `WithTop ℕ`, a set `s` measurable for the σ-algebra at `σ` and a finite member `P` of the null,

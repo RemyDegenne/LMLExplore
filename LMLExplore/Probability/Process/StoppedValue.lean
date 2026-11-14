@@ -67,7 +67,9 @@ noncomputable def stoppedValueLimsup (u : ℕ → Ω → β) (τ : Ω → WithTo
 theorem stoppedValueLimsup_of_eq_coe {n : ℕ} (h : τ ω = n) :
     stoppedValueLimsup u τ ω = u n ω := by
   simp only [stoppedValueLimsup, h, WithTop.natCast_ne_top, ↓reduceIte]
-  rw [Nat.cast_withTop, WithTop.untopA, WithTop.untopD_coe]
+  -- `Nat.cast` into `WithTop ℕ` is `WithTop.some`, which `untop` inverts.
+  rw [WithTop.untopA_eq_untop (WithTop.natCast_ne_top n),
+    (WithTop.untop_eq_iff _).2 (Nat.cast_withTop n)]
 
 /-- Where the random time is infinite, `stoppedValueLimsup` is the `limsup` of the process. -/
 theorem stoppedValueLimsup_of_eq_top (h : τ ω = ⊤) :
