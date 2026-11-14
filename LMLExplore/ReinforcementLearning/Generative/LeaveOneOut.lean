@@ -146,9 +146,6 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le_of_separated {M
     (hR p).mono fun x hx ↦ (abs_of_nonneg hx.1).trans_le hx.2
   have hRe (ω : ℕ → 𝓢 × 𝓐 → 𝓢) : ∀ p, ∀ᵐ x ∂((M.empirical N ω).R p), |x| ≤ C := by
     simpa using hRabs
-  -- the reward of a deterministic policy `d` is in `[0, C]`
-  have hf (d : 𝓢 → 𝓐) (s : 𝓢) :=
-    policyReward_mem_Icc (π := Kernel.deterministic d (measurable_of_finite d)) hR s
   have hC : 0 ≤ C := (abs_nonneg _).trans (abs_meanReward_le hRabs (Classical.arbitrary _))
   -- for `C = 0` all the values vanish, and for `γ = 0` both values are the reward
   rcases hC.eq_or_lt with rfl | hC₀
@@ -168,9 +165,7 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le_of_separated {M
   · refine le_trans ?_ (measureReal_mono (s₁ := Set.univ) (fun ω _ _ s ↦ ?_) (measure_ne_top _ _))
     · rw [probReal_univ]
       linarith
-    · rw [value_eq_policyReward_add hγ (hRe ω), value_eq_policyReward_add hγ hRabs]
-      simp only [NNReal.coe_zero, zero_mul, add_zero]
-      rw [policyReward_def, empirical_R, ← policyReward_def, sub_self, abs_zero]
+    · rw [value_empirical_zero, sub_self, abs_zero]
       positivity
   have hγ₀' : 0 < γ := pos_iff_ne_zero.2 hγ₀
   -- the confidence level `L` and the number `m` of levels
@@ -190,25 +185,12 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le_of_separated {M
       one_le_mul_of_one_le_of_one_le (one_le_mul_of_one_le_of_one_le hS hA) hK₁
     nlinarith)
   -- the levels `V d l` of a deterministic policy `d` and their bounds `b l`
-  obtain ⟨V, hV₀, hV⟩ : ∃ V : (𝓢 → 𝓐) → ℕ → 𝓢 → ℝ,
-      (∀ d x, V d 0 x = ∫ y, M.policyReward (Kernel.deterministic d (measurable_of_finite d)) y
-        ∂(Kernel.resolvent γ (M.stateKernel (Kernel.deterministic d (measurable_of_finite d))) x)) ∧
-      ∀ d l x, V d (l + 1) x =
-        ∫ y, √Var[V d l; M.stateKernel (Kernel.deterministic d (measurable_of_finite d)) y]
-          ∂(Kernel.resolvent γ (M.stateKernel (Kernel.deterministic d (measurable_of_finite d)))
-            x) :=
-    ⟨fun d l ↦ Nat.rec
-      (fun x ↦ ∫ y, M.policyReward (Kernel.deterministic d (measurable_of_finite d)) y
-        ∂(Kernel.resolvent γ (M.stateKernel (Kernel.deterministic d (measurable_of_finite d))) x))
-      (fun _ W x ↦ ∫ y, √Var[W; M.stateKernel (Kernel.deterministic d (measurable_of_finite d)) y]
-        ∂(Kernel.resolvent γ (M.stateKernel (Kernel.deterministic d (measurable_of_finite d))) x))
-      l, fun _ _ ↦ rfl, fun _ _ _ ↦ rfl⟩
+  set V : (𝓢 → 𝓐) → ℕ → 𝓢 → ℝ := fun d ↦
+    M.valueLevel γ (Kernel.deterministic d (measurable_of_finite d)) with hV_def
   set b : ℕ → ℝ := fun l ↦ C / ((1 - γ) * (γ * √(1 - γ)) ^ l)
   have hbpos (l : ℕ) : 0 < b l :=
     div_pos hC₀ (mul_pos hu (pow_pos (mul_pos (NNReal.coe_pos.2 hγ₀') (Real.sqrt_pos.2 hu)) _))
-  have hVb (d : 𝓢 → 𝓐) : ∀ l y, V d l y ∈ Set.Icc 0 (b l) :=
-    Kernel.mem_Icc_of_eq_integral_resolvent_sqrt_variance hγ₀' hγ measurable_policyReward
-      (fun s ↦ (hf d s).1) (fun s ↦ (hf d s).2) (hV₀ d) (hV d)
+  have hVb (d : 𝓢 → 𝓐) : ∀ l y, V d l y ∈ Set.Icc 0 (b l) := valueLevel_mem_Icc hγ₀' hγ hR _
   -- the grid of rewards on `[-B, B]`, with `B` bounding `Q̂* (s, a) - γ v̂* s`
   set B := (1 + γ) * C / (1 - γ)
   -- the levels of the greedy optimal policies of the absorbing modifications on the grid
@@ -236,7 +218,7 @@ theorem le_streamMeasure_forall_abs_value_empirical_sub_value_le_of_separated {M
   intro hsep x
   set g := (M.empirical N ω).greedy γ ((M.empirical N ω).optValue γ)
   refine abs_value_sub_value_le_of_abs_integral_stateKernel_sub_le (empirical_R M N ω) hγ₀' hγ hR
-    _ (hV₀ g) (hV g) (Nat.le_ceil _) hN₀ hL hN (fun l hl y ↦ ?_) x
+    _ (Nat.le_ceil _) hN₀ hL hN (fun l hl y ↦ ?_) x
   -- `g` is the greedy optimal policy of a modification at `(y, g y)` on the grid
   obtain ⟨k, hk⟩ := exists_greedy_optValue_saAbsorbing_eq (p := (y, g y)) hγ (hRe ω) hη hsep
     (abs_optQValue_sub_mul_optValue_le hγ (hRe ω) _) hK hKη
