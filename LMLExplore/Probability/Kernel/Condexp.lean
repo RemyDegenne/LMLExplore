@@ -9,7 +9,10 @@ public import Mathlib.Probability.ConditionalExpectation
 public import Mathlib.Probability.Kernel.Condexp
 
 /-!
-# The conditional expectation kernel: freezing and independence
+# The conditional expectation kernel: almost sure properties, freezing and independence
+
+A property that holds `μ`-almost everywhere holds, for almost every `ω`, almost everywhere under
+the conditional expectation kernel at `ω`.
 
 If `Z` is measurable with respect to a sub-σ-algebra `m`, then integrating a function of `(Z, ω)`
 amounts to integrating out `ω` against the conditional expectation kernel with `Z` frozen:
@@ -20,6 +23,8 @@ of the conditional expectation kernel by `X`, is almost surely the law of `X`.
 
 ## Main statements
 
+* `LMLExplore.ae_trim_ae_condExpKernel`: a `μ`-almost everywhere property holds almost everywhere
+  under `condExpKernel μ m ω` for `μ.trim hm`-almost every `ω`.
 * `LMLExplore.lintegral_comp_condExpKernel`: the freezing lemma for nonnegative functions.
 * `LMLExplore.ae_trim_map_condExpKernel_eq_of_indep`: for `X` independent of `m`,
   `(condExpKernel μ m ω).map X = μ.map X` for almost every `ω`.
@@ -39,6 +44,12 @@ namespace LMLExplore
 
 variable {Ω E : Type*} {m mΩ : MeasurableSpace Ω} [StandardBorelSpace Ω] {mE : MeasurableSpace E}
   {μ : Measure Ω} [IsFiniteMeasure μ]
+
+/-- A property that holds `μ`-almost everywhere holds, for `μ.trim hm`-almost every `ω`, almost
+everywhere under the conditional expectation kernel at `ω`. -/
+lemma ae_trim_ae_condExpKernel (hm : m ≤ mΩ) {p : Ω → Prop} (h : ∀ᵐ ω ∂μ, p ω) :
+    ∀ᵐ ω ∂(μ.trim hm), ∀ᵐ ω' ∂(condExpKernel μ m ω), p ω' :=
+  Measure.ae_ae_of_ae_comp (by rwa [condExpKernel_comp_trim hm])
 
 /-- **Freezing lemma for the conditional expectation kernel**: if `Z` is `m`-measurable, then for
 every measurable `Φ ≥ 0`,
