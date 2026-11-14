@@ -5,6 +5,7 @@ Authors: LMLExplore contributors
 -/
 module
 
+public import LMLExplore.Algebra.Order.BigOperators.Ring.Finset
 public import Mathlib.Analysis.LocallyConvex.Separation
 public import Mathlib.Data.EReal.Basic
 public import Mathlib.Basic.NNReal.Basic
@@ -25,7 +26,8 @@ Theorem 1; §8.6, Theorem 1].
 
 The existence of multipliers only needs `F` and `h` to be jointly *convex-like* on `C` in the sense
 of Fan [Fan53]: for `x, y ∈ C` and weights `a, b`, some `z ∈ C` has `F z` and every `h i z` below
-the corresponding convex combinations of the values at `x` and `y`. It is stated in that form in
+the corresponding convex combinations of the values at `x` and `y`
+(`LMLExplore.JointlyConvexLikeOn`). It is stated in that form in
 `LMLExplore.exists_forall_le_add_sum_mul_of_convexLike`, which needs no linear structure on the
 domain and so applies to convex sets of probability measures, which carry no real scalar
 multiplication. Strong duality and the saddle point characterization are stated in the same
@@ -39,6 +41,11 @@ real infimum of a Lagrangian unbounded below is the junk value `0`, for which we
 This is the duality behind the dual formula of the minimal Kullback–Leibler divergence to a set
 of laws defined by finitely many moment constraints, `KL_inf`, as the maximal expected logarithm
 of a bet `1 + ∑ i, π i * g i`.
+
+## Main definitions
+
+* `LMLExplore.JointlyConvexLikeOn C F h`: `F` and the `h i` are jointly convex-like on `C`;
+  `ConvexOn.jointlyConvexLikeOn` derives it from convexity.
 
 ## Main statements
 
@@ -87,21 +94,26 @@ variable {X ι : Type*} {C : Set X} {F : X → ℝ} {h : ι → X → ℝ}
 
 namespace LMLExplore
 
-/-- A sum of products of nonnegative and nonpositive reals is nonpositive. -/
-private lemma sum_mul_nonpos [Fintype ι] {c v : ι → ℝ} (hc : ∀ i, 0 ≤ c i) (hv : ∀ i, v i ≤ 0) :
-    ∑ i, c i * v i ≤ 0 :=
-  Finset.sum_nonpos fun i _ ↦ mul_nonpos_of_nonneg_of_nonpos (hc i) (hv i)
+/-- `F` and the family `h` are *jointly convex-like* on `C`, in the sense of Fan [Fan53]: for
+`x, y ∈ C` and weights `a, b ≥ 0` with `a + b = 1`, some `z ∈ C` has `F z` and every `h i z` below
+the corresponding convex combinations of the values at `x` and `y`. Convex functions on a convex
+set are jointly convex-like (`ConvexOn.jointlyConvexLikeOn`). The definition needs no linear
+structure on `X`, so it also applies to functionals of probability measures, taking `z` to be a
+mixture. -/
+def JointlyConvexLikeOn (C : Set X) (F : X → ℝ) (h : ι → X → ℝ) : Prop :=
+  ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
+    ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y
 
-/-- Products of nonnegative and nonpositive reals with a nonnegative sum all vanish. -/
-private lemma mul_eq_zero_of_sum_mul_nonneg [Fintype ι] {c v : ι → ℝ} (hc : ∀ i, 0 ≤ c i)
-    (hv : ∀ i, v i ≤ 0) (hs : 0 ≤ ∑ i, c i * v i) (i : ι) : c i * v i = 0 :=
-  (Finset.sum_eq_zero_iff_of_nonpos fun i _ ↦ mul_nonpos_of_nonneg_of_nonpos (hc i) (hv i)).1
-    ((sum_mul_nonpos hc hv).antisymm hs) i (Finset.mem_univ _)
+/-- The defining property of `LMLExplore.JointlyConvexLikeOn`. -/
+theorem jointlyConvexLikeOn_iff : JointlyConvexLikeOn C F h ↔
+    ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
+      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y :=
+  Iff.rfl
 
 /-- The Lagrangian of a nonnegative multiplier is below the objective on the feasible set. -/
 private lemma add_sum_mul_le [Fintype ι] (π : ι → ℝ≥0) {x : X} (hx : ∀ i, h i x ≤ 0) :
     F x + ∑ i, (π i : ℝ) * h i x ≤ F x :=
-  add_le_of_nonpos_right <| sum_mul_nonpos (fun i ↦ (π i).2) hx
+  add_le_of_nonpos_right <| Finset.sum_mul_nonpos (fun i _ ↦ (π i).2) fun i _ ↦ hx i
 
 /-- **Weak duality** in `EReal`: for every problem, the supremum over the multipliers of the
 infimum of the Lagrangian over `C` is below the infimum of the objective on the feasible set. -/
@@ -140,24 +152,18 @@ private lemma isOpen_strictEpigraph [Finite ι] : IsOpen (strictEpigraph C F h) 
   exact isOpen_biUnion fun x _ ↦ isOpen_iInter_of_finite fun j ↦
     isOpen_lt continuous_const (continuous_apply j)
 
-/-- A convex combination of two strict inequalities is strict. -/
-private lemma combo_lt_combo {a b s t u w : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) (hab : a + b = 1)
-    (hs : s < u) (ht : t < w) : a * s + b * t < a * u + b * w := by
-  rcases ha.eq_or_lt with rfl | ha
-  · obtain rfl : b = 1 := by linarith
-    linarith
-  · nlinarith [mul_lt_mul_of_pos_left hs ha, mul_le_mul_of_nonneg_left ht.le hb]
-
-private lemma convex_strictEpigraph
-    (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y) :
+private lemma convex_strictEpigraph (hconv : JointlyConvexLikeOn C F h) :
     Convex ℝ (strictEpigraph C F h) := by
   rintro v ⟨x, hx, hxv⟩ w ⟨y, hy, hyw⟩ a b ha hb hab
-  obtain ⟨z, hz, hFz, hhz⟩ := hconv x hx y hy a b ha hb hab
+  obtain ⟨z, hz, hFz, hhz⟩ := jointlyConvexLikeOn_iff.1 hconv x hx y hy a b ha hb hab
   refine ⟨z, hz, fun j ↦ ?_⟩
   have hz' : objConstr F h j z ≤ a * objConstr F h j x + b * objConstr F h j y := by
     cases j <;> simp [objConstr, hFz, hhz]
-  simpa using hz'.trans_lt (combo_lt_combo ha hb hab (hxv j) (hyw j))
+  -- The convex combination of `objConstr F h j x - v j < 0` and `objConstr F h j y - w j < 0`.
+  have hlt := convex_Iio (0 : ℝ) (sub_neg.2 (hxv j)) (sub_neg.2 (hyw j)) ha hb hab
+  simp only [mem_Iio, smul_eq_mul] at hlt
+  simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]
+  linarith
 
 private lemma mem_strictEpigraph_of_le {v w : Option ι → ℝ} (hv : v ∈ strictEpigraph C F h)
     (hvw : v ≤ w) : w ∈ strictEpigraph C F h := by
@@ -203,8 +209,7 @@ constraints, has `c none * m ≤ c none * F x + ∑ i, c (some i) * h i x` for e
 Under Slater's condition `c none` is positive, which gives
 `LMLExplore.exists_forall_le_add_sum_mul_of_convexLike`. -/
 theorem exists_ne_zero_forall_le_of_convexLike [Fintype ι]
-    (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y)
+    (hconv : JointlyConvexLikeOn C F h)
     {m : ℝ} (hm : ∀ x ∈ C, (∀ i, h i x ≤ 0) → m ≤ F x) :
     ∃ c : Option ι → ℝ, c ≠ 0 ∧ (∀ j, 0 ≤ c j) ∧
       ∀ x ∈ C, c none * m ≤ c none * F x + ∑ i, c (some i) * h i x := by
@@ -239,19 +244,18 @@ theorem exists_ne_zero_forall_le_of_convexLike [Fintype ι]
     simpa [hfc, objConstr, p] using apply_le_of_forall_lt hf hx
 
 /-- **Lagrange multipliers under Slater's condition** [Lue69, §8.3, Theorem 1], for convex-like
-data [Fan53]. Let `F` and finitely many `h i` be jointly convex-like on a set `C`: for `x, y ∈ C`
-and weights `a, b ≥ 0` with `a + b = 1`, some `z ∈ C` has `F z` and every `h i z` below the
-corresponding convex combinations of the values at `x` and `y`. If some `x₀ ∈ C` satisfies
-`h i x₀ < 0` for every `i` and `m` is a lower bound of `F` on the feasible set
-`{x ∈ C | ∀ i, h i x ≤ 0}`, then some multiplier `π : ι → ℝ≥0` makes `m` a lower bound of the
-Lagrangian `F x + ∑ i, π i * h i x` on all of `C`.
+data [Fan53]. Let `F` and finitely many `h i` be jointly convex-like on a set `C`
+(`LMLExplore.JointlyConvexLikeOn`): for `x, y ∈ C` and weights `a, b ≥ 0` with `a + b = 1`, some
+`z ∈ C` has `F z` and every `h i z` below the corresponding convex combinations of the values at
+`x` and `y`. If some `x₀ ∈ C` satisfies `h i x₀ < 0` for every `i` and `m` is a lower bound of
+`F` on the feasible set `{x ∈ C | ∀ i, h i x ≤ 0}`, then some multiplier `π : ι → ℝ≥0` makes `m` a
+lower bound of the Lagrangian `F x + ∑ i, π i * h i x` on all of `C`.
 
 No vector space structure on `X` is needed: this applies to convex sets of measures. For convex
 functions on a convex set, see `LMLExplore.exists_forall_le_add_sum_mul_of_slater`.
 -/
 theorem exists_forall_le_add_sum_mul_of_convexLike [Fintype ι]
-    (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y)
+    (hconv : JointlyConvexLikeOn C F h)
     (hslater : ∃ x₀ ∈ C, ∀ i, h i x₀ < 0) {m : ℝ}
     (hm : ∀ x ∈ C, (∀ i, h i x ≤ 0) → m ≤ F x) :
     ∃ π : ι → ℝ≥0, ∀ x ∈ C, m ≤ F x + ∑ i, (π i : ℝ) * h i x := by
@@ -263,8 +267,8 @@ theorem exists_forall_le_add_sum_mul_of_convexLike [Fintype ι]
     refine (hc_nonneg none).lt_of_ne' fun h0 ↦ hc ?_
     have hsum : 0 ≤ ∑ i, c (some i) * h i x₀ := by simpa [h0] using hcx x₀ hx₀
     have hzero (i : ι) : c (some i) = 0 :=
-      (mul_eq_zero.1 (mul_eq_zero_of_sum_mul_nonneg (fun _ ↦ hc_nonneg _) (fun i ↦ (hx₀h i).le)
-        hsum i)).resolve_right (hx₀h i).ne
+      (mul_eq_zero.1 (Finset.mul_eq_zero_of_sum_mul_nonneg (fun _ _ ↦ hc_nonneg _)
+        (fun i _ ↦ (hx₀h i).le) hsum (Finset.mem_univ i))).resolve_right (hx₀h i).ne
     ext (_ | i)
     exacts [h0, hzero i]
   -- Normalize the coefficient of the objective to `1`.
@@ -289,8 +293,7 @@ every `i`, then some multiplier `π : ι → ℝ≥0` makes the infimum of `F` o
 `F x + ∑ i, π i * h i x`. Values are in `EReal`, so no boundedness is assumed: when `F` is
 unbounded below on the feasible set, both sides are `⊥`. -/
 theorem exists_iInf_eq_iInf_add_of_convexLike [Fintype ι]
-    (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y)
+    (hconv : JointlyConvexLikeOn C F h)
     (hslater : ∃ x₀ ∈ C, ∀ i, h i x₀ < 0) :
     ∃ π : ι → ℝ≥0, ⨅ x ∈ {x ∈ C | ∀ i, h i x ≤ 0}, (F x : EReal) =
       ⨅ x ∈ C, ((F x + ∑ i, (π i : ℝ) * h i x : ℝ) : EReal) := by
@@ -315,8 +318,7 @@ every `i`, then the infimum of `F` over `{x ∈ C | ∀ i, h i x ≤ 0}` is the 
 `π : ι → ℝ≥0` of the infimum over `C` of the Lagrangian `F x + ∑ i, π i * h i x`, in `EReal`. The
 supremum is attained (`LMLExplore.exists_iInf_eq_iInf_add_of_convexLike`). -/
 theorem iInf_eq_iSup_iInf_add_of_convexLike [Fintype ι]
-    (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y)
+    (hconv : JointlyConvexLikeOn C F h)
     (hslater : ∃ x₀ ∈ C, ∀ i, h i x₀ < 0) :
     ⨅ x ∈ {x ∈ C | ∀ i, h i x ≤ 0}, (F x : EReal) =
       ⨆ π : ι → ℝ≥0, ⨅ x ∈ C, ((F x + ∑ i, (π i : ℝ) * h i x : ℝ) : EReal) := by
@@ -330,8 +332,7 @@ in `LMLExplore.exists_forall_le_add_sum_mul_of_convexLike`, with some `x₀ ∈ 
 exactly when some multiplier `π : ι → ℝ≥0` makes `x` a minimizer over `C` of the Lagrangian
 `F y + ∑ i, π i * h i y`, with complementary slackness `π i * h i x = 0` for every `i`. -/
 theorem isMinOn_iff_exists_isMinOn_add_sum_mul_of_convexLike [Fintype ι]
-    (hconv : ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y)
+    (hconv : JointlyConvexLikeOn C F h)
     (hslater : ∃ x₀ ∈ C, ∀ i, h i x₀ < 0) {x : X} (hx : x ∈ C) (hxh : ∀ i, h i x ≤ 0) :
     IsMinOn F {y ∈ C | ∀ i, h i y ≤ 0} x ↔
       ∃ π : ι → ℝ≥0, IsMinOn (fun y ↦ F y + ∑ i, (π i : ℝ) * h i y) C x ∧
@@ -341,8 +342,9 @@ theorem isMinOn_iff_exists_isMinOn_add_sum_mul_of_convexLike [Fintype ι]
     obtain ⟨π, hπ⟩ := exists_forall_le_add_sum_mul_of_convexLike hconv hslater (m := F x)
       fun y hy hyh ↦ isMinOn_iff.1 hmin y ⟨hy, hyh⟩
     -- At `x` the sum of the nonpositive terms `π i * h i x` is nonnegative, hence each is zero.
-    have hslack : ∀ i, (π i : ℝ) * h i x = 0 :=
-      mul_eq_zero_of_sum_mul_nonneg (fun i ↦ (π i).2) hxh (by linarith [hπ x hx])
+    have hslack (i : ι) : (π i : ℝ) * h i x = 0 :=
+      Finset.mul_eq_zero_of_sum_mul_nonneg (fun i _ ↦ (π i).2) (fun i _ ↦ hxh i)
+        ((le_add_iff_nonneg_right _).1 (hπ x hx)) (Finset.mem_univ i)
     exact ⟨π, isMinOn_iff.2 fun y hy ↦ by simpa [hslack] using hπ y hy, hslack⟩
   · rintro ⟨π, hmin, hslack⟩
     exact hmin.of_add_sum_mul hslack
@@ -352,10 +354,9 @@ section ConvexOn
 variable [AddCommMonoid X] [SMul ℝ X]
 
 /-- Convex functions on a convex set are jointly convex-like there, witnessed by `a • x + b • y`. -/
-private lemma convexLike_of_convexOn (hF : ConvexOn ℝ C F) (hh : ∀ i, ConvexOn ℝ C (h i)) :
-    ∀ x ∈ C, ∀ y ∈ C, ∀ a b : ℝ, 0 ≤ a → 0 ≤ b → a + b = 1 →
-      ∃ z ∈ C, F z ≤ a * F x + b * F y ∧ ∀ i, h i z ≤ a * h i x + b * h i y :=
-  fun x hx y hy a b ha hb hab ↦ ⟨a • x + b • y, hF.1 hx hy ha hb hab,
+theorem _root_.ConvexOn.jointlyConvexLikeOn (hF : ConvexOn ℝ C F) (hh : ∀ i, ConvexOn ℝ C (h i)) :
+    JointlyConvexLikeOn C F h :=
+  jointlyConvexLikeOn_iff.2 fun x hx y hy a b ha hb hab ↦ ⟨a • x + b • y, hF.1 hx hy ha hb hab,
     by simpa using hF.2 hx hy ha hb hab, fun i ↦ by simpa using (hh i).2 hx hy ha hb hab⟩
 
 variable [Fintype ι]
@@ -369,7 +370,7 @@ theorem exists_forall_le_add_sum_mul_of_slater (hF : ConvexOn ℝ C F)
     (hh : ∀ i, ConvexOn ℝ C (h i)) (hslater : ∃ x₀ ∈ C, ∀ i, h i x₀ < 0) {p : ℝ}
     (hp : ∀ x ∈ C, (∀ i, h i x ≤ 0) → p ≤ F x) :
     ∃ π : ι → ℝ≥0, ∀ x ∈ C, p ≤ F x + ∑ i, (π i : ℝ) * h i x :=
-  exists_forall_le_add_sum_mul_of_convexLike (convexLike_of_convexOn hF hh) hslater hp
+  exists_forall_le_add_sum_mul_of_convexLike (hF.jointlyConvexLikeOn hh) hslater hp
 
 /-- **Strong duality under Slater's condition**, with an attained dual optimum. If `F` and the
 finitely many constraints `h i` are convex on `C`, some point of `C` satisfies every constraint
@@ -403,7 +404,7 @@ theorem iInf_eq_iSup_iInf_add_of_slater (hF : ConvexOn ℝ C F) (hh : ∀ i, Con
     (hslater : ∃ x₀ ∈ C, ∀ i, h i x₀ < 0) :
     ⨅ x ∈ {x ∈ C | ∀ i, h i x ≤ 0}, (F x : EReal) =
       ⨆ π : ι → ℝ≥0, ⨅ x ∈ C, ((F x + ∑ i, (π i : ℝ) * h i x : ℝ) : EReal) :=
-  iInf_eq_iSup_iInf_add_of_convexLike (convexLike_of_convexOn hF hh) hslater
+  iInf_eq_iSup_iInf_add_of_convexLike (hF.jointlyConvexLikeOn hh) hslater
 
 /-- **Complementary slackness under Slater's condition** [Lue69, §8.3, Theorem 1]. If `F` and the
 finitely many constraints `h i` are convex on `C`, some point of `C` satisfies every constraint
@@ -417,7 +418,7 @@ theorem _root_.IsMinOn.exists_mul_eq_zero_and_isMinOn_add_sum_mul_of_slater {x :
     ∃ π : ι → ℝ≥0, (∀ i, (π i : ℝ) * h i x = 0) ∧
       IsMinOn (fun y ↦ F y + ∑ i, (π i : ℝ) * h i y) C x := by
   obtain ⟨π, hπ, hslack⟩ := (isMinOn_iff_exists_isMinOn_add_sum_mul_of_convexLike
-    (convexLike_of_convexOn hF hh) hslater hx.1 hx.2).1 hmin
+    (hF.jointlyConvexLikeOn hh) hslater hx.1 hx.2).1 hmin
   exact ⟨π, hslack, hπ⟩
 
 end ConvexOn
