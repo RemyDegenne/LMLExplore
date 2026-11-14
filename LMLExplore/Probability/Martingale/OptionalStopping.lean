@@ -84,29 +84,6 @@ private lemma max_min_succ_eq {a b : WithTop ℕ} {k : ℕ} (h : ¬(a ≤ k ∧ 
   · rw [not_lt] at h
     rw [min_eq_left (h.trans (by simp)), min_eq_left h]
 
-/-! Mathlib's stopping-time API is stated at the coercion `WithTop.some n`, while the statements
-here use the cast `(n : WithTop ℕ)`; the following helpers convert between them by
-`Nat.cast_withTop`. -/
-
-private lemma measurableSet_le_natCast (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
-    MeasurableSet[ℱ n] {ω | τ ω ≤ n} := by
-  rw [Nat.cast_withTop]
-  exact hτ n
-
-private lemma measurableSet_natCast_lt (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
-    MeasurableSet[ℱ n] {ω | (n : WithTop ℕ) < τ ω} := by
-  rw [Nat.cast_withTop]
-  exact hτ.measurableSet_gt n
-
-private lemma isStoppingTime_natCast (n : ℕ) : IsStoppingTime ℱ fun _ ↦ (n : WithTop ℕ) := by
-  rw [Nat.cast_withTop]
-  exact isStoppingTime_const ℱ n
-
-private lemma isStoppingTime_min_natCast (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
-    IsStoppingTime ℱ fun ω ↦ min (τ ω) n := by
-  rw [Nat.cast_withTop]
-  exact hτ.min_const n
-
 namespace IsENNSupermartingale
 
 /-- An `ℝ≥0∞`-valued supermartingale with finite initial expectation under a finite measure
@@ -156,13 +133,13 @@ theorem setLIntegral_stoppedValueLimsup_le_of_le_const (hM : IsENNSupermartingal
   have hstep (k : ℕ) : ∫⁻ ω in s, g (k + 1) ω ∂P ≤ ∫⁻ ω in s, g k ω ∂P := by
     set A := {ω | σ ω ≤ k} ∩ {ω | (k : WithTop ℕ) < τ ω}
     have hAk : MeasurableSet[ℱ k] A :=
-      (measurableSet_le_natCast hσ k).inter (measurableSet_natCast_lt hτ k)
+      (hσ.measurableSet_le_natCast k).inter (hτ.measurableSet_natCast_lt k)
     have hA : MeasurableSet A := ℱ.le k _ hAk
     have hsA : MeasurableSet[ℱ k] (s ∩ A) := by
       have hsk := ((hσ.measurableSet s).1 hs).2 k
       rw [← Nat.cast_withTop] at hsk
       rw [← inter_assoc]
-      exact hsk.inter (measurableSet_natCast_lt hτ k)
+      exact hsk.inter (hτ.measurableSet_natCast_lt k)
     have hg_succ : EqOn (g (k + 1)) (M (k + 1)) (s ∩ A) := fun ω hω ↦
       stoppedValueLimsup_of_eq_coe (max_min_succ_of_le_of_lt hω.2.1 hω.2.2).1
     have hg : EqOn (g k) (M k) (s ∩ A) := fun ω hω ↦
@@ -201,12 +178,12 @@ theorem setLIntegral_stoppedValueLimsup_le (hM : IsENNSupermartingale M ℱ S) (
   set F : ℕ → Ω → ℝ≥0∞ := fun N ↦
     (s ∩ {ω | σ ω ≤ N}).indicator (stoppedValueLimsup M fun ω ↦ min (τ ω) N)
   have hsN (N : ℕ) : MeasurableSet (s ∩ {ω | σ ω ≤ N}) :=
-    hs'.inter (ℱ.le N _ (measurableSet_le_natCast hσ N))
+    hs'.inter (ℱ.le N _ (hσ.measurableSet_le_natCast N))
   have hsub (N : ℕ) : s ∩ {ω | σ ω ≤ N} ⊆ s \ {ω | σ ω = ⊤} := fun _ hω ↦
     ⟨hω.1, ne_top_of_le_ne_top (WithTop.natCast_ne_top N) hω.2⟩
   have hF_meas (N : ℕ) : Measurable (F N) :=
     (measurable_stoppedValueLimsup hM.measurable
-      (isStoppingTime_min_natCast hτ N).measurable').indicator (hsN N)
+      (hτ.min_natCast N).measurable').indicator (hsN N)
   have hF_le (N : ℕ) :
       ∫⁻ ω, F N ω ∂P ≤ ∫⁻ ω in s \ {ω | σ ω = ⊤}, stoppedValueLimsup M σ ω ∂P := by
     rw [lintegral_indicator (hsN N)]

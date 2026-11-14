@@ -35,6 +35,10 @@ optional stopping holds at every stopping time with this convention.
 * `MeasureTheory.tendsto_stoppedValueLimsup_min`: for a convergent process, the values at the
   truncated times `min τ N` converge to the value at `τ`.
 * `MeasureTheory.measurable_stoppedValueLimsup`: it is measurable for measurable `u n` and `τ`.
+* `MeasureTheory.IsStoppingTime.measurableSet_le_natCast`,
+  `MeasureTheory.IsStoppingTime.measurableSet_natCast_lt`, `MeasureTheory.isStoppingTime_natCast`,
+  `MeasureTheory.IsStoppingTime.min_natCast`: Mathlib's stopping-time API for `WithTop ℕ`-valued
+  times, stated at the cast `(n : WithTop ℕ)` rather than the coercion `WithTop.some n`.
 
 ## References
 
@@ -135,5 +139,43 @@ theorem measurable_stoppedValueLimsup [ConditionallyCompleteLinearOrder β] [Top
     | top => simpa using Measurable.limsup hu
     | coe n => simpa using hu n
   exact h.comp (measurable_id.prodMk hτ)
+
+/-! ### Stopping times in `WithTop ℕ` at the cast of a natural number
+
+Mathlib's stopping-time API is stated at the coercion `WithTop.some n`, while statements about
+`WithTop ℕ`-valued times use the cast `(n : WithTop ℕ)`; the following lemmas convert between them
+by `Nat.cast_withTop`. -/
+
+section NatCast
+
+variable {mΩ : MeasurableSpace Ω} {ℱ : Filtration ℕ mΩ}
+
+/-- For a stopping time with values in `WithTop ℕ`, `{ω | τ ω ≤ n}` is `ℱ n`-measurable, at the
+cast `(n : WithTop ℕ)`. -/
+theorem IsStoppingTime.measurableSet_le_natCast (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
+    MeasurableSet[ℱ n] {ω | τ ω ≤ n} := by
+  rw [Nat.cast_withTop]
+  exact hτ n
+
+/-- For a stopping time with values in `WithTop ℕ`, `{ω | n < τ ω}` is `ℱ n`-measurable, at the
+cast `(n : WithTop ℕ)`. -/
+theorem IsStoppingTime.measurableSet_natCast_lt (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
+    MeasurableSet[ℱ n] {ω | (n : WithTop ℕ) < τ ω} := by
+  rw [Nat.cast_withTop]
+  exact hτ.measurableSet_gt n
+
+/-- The constant time `(n : WithTop ℕ)` is a stopping time. -/
+theorem isStoppingTime_natCast (n : ℕ) : IsStoppingTime ℱ fun _ ↦ (n : WithTop ℕ) := by
+  rw [Nat.cast_withTop]
+  exact isStoppingTime_const ℱ n
+
+/-- The minimum of a stopping time with values in `WithTop ℕ` and the cast `(n : WithTop ℕ)` is a
+stopping time. -/
+theorem IsStoppingTime.min_natCast (hτ : IsStoppingTime ℱ τ) (n : ℕ) :
+    IsStoppingTime ℱ fun ω ↦ min (τ ω) n := by
+  rw [Nat.cast_withTop]
+  exact hτ.min_const n
+
+end NatCast
 
 end MeasureTheory
